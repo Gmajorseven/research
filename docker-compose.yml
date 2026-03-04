@@ -1,0 +1,245 @@
+version: '3.9'
+
+# =============================================================================
+# Research Environment: Bitcoin (testnet4) + 3 LND nodes + Watchtower
+# =============================================================================
+# Simulates a 3-node Lightning Network for studying:
+#   - Multi-hop payment routing (Alice -> Bob -> Carol)
+#   - Fraud prevention via LND built-in watchtower
+#   - On-chain justice/penalty transaction mechanism
+#
+# Node topology:
+#   Alice ──[channel]──► Bob ──[channel]──► Carol
+#   Alice also hosts the Watchtower Server.
+#   Bob and Carol register as Watchtower Clients.
+#
+# Usage:
+#   docker compose -f docker-compose.research.yml up -d
+#   Then follow scripts in research/scripts/
+# =============================================================================
+
+networks:
+  research_net:
+    driver: bridge
+    name: research_net
+
+volumes:
+  research_bitcoin_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/bitcoin
+
+  research_alice_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/alice
+
+  research_bob_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/bob
+
+  research_carol_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/carol
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Bitcoin Core — Testnet4
+  # ---------------------------------------------------------------------------
+  bitcoin-research:
+    build:
+      context: ./bitcoin
+      dockerfile: Dockerfile
+      args:
+        BITCOIN_VERSION: ${BITCOIN_VERSION:-28.1}
+    image: bitcoin-core:${BITCOIN_VERSION:-28.1}
+    container_name: bitcoin-research
+    restart: unless-stopped
+    networks:
+      - research_net
+    ports:
+      - "48332:48332"  # RPC (testnet4)
+      - "48333:48333"  # P2P (testnet4)
+      - "28332:28332"  # ZMQ rawblock
+      - "28333:28333"  # ZMQ rawtx
+    volumes:
+      - research_bitcoin_data:/home/bitcoin/.bitcoin
+      - ./bitcoin/bitcoin-testnet4.conf:/home/bitcoin/.bitcoin/bitcoin.conf:ro
+    environment:
+      - BITCOIN_DATA=/home/bitcoin/.bitcoin
+    command: >
+      bitcoind
+      -testnet4
+      -conf=/home/bitcoin/.bitcoin/bitcoin.conf
+      -datadir=/home/bitcoin/.bitcoin
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-testnet4",
+             "-rpcuser=bitcoinrpc",
+             "-rpcpassword=research_password",
+             "-rpcconnect=127.0.0.1",
+             "getblockchaininfo"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # LND — Alice (Node A + Watchtower Server)
+  # ---------------------------------------------------------------------------
+  lnd-alice:
+    build:
+      context: ./lnd
+      dockerfile: Dockerfile
+      args:
+        LND_VERSION: ${LND_VERSION:-v0.18.3-beta}
+    image: lnd:${LND_VERSION:-v0.18.3-beta}
+    container_name: lnd-alice
+    restart: unless-stopped
+    depends_on:
+      bitcoin-research:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "9835:9735"    # P2P Lightning
+      - "10109:10009"  # gRPC
+      - "8180:8080"    # REST
+      - "9911:9911"    # Watchtower server port
+    volumes:
+      - research_alice_data:/home/lnd/.lnd
+      - ./lnd-alice/lnd-alice.conf:/home/lnd/.lnd/lnd.conf:ro
+    environment:
+      - LND_DATA=/home/lnd/.lnd
+    command: >
+      lnd
+      --configfile=/home/lnd/.lnd/lnd.conf
+      --bitcoind.rpcuser=bitcoinrpc
+      --bitcoind.rpcpass=research_password
+    healthcheck:
+      test: ["CMD", "lncli",
+             "--network=testnet4",
+             "--rpcserver=localhost:10009",
+             "--tlscertpath=/home/lnd/.lnd/tls.cert",
+             "--macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon",
+             "getinfo"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # LND — Bob (Node B / Middle Hop + Watchtower Client)
+  # ---------------------------------------------------------------------------
+  lnd-bob:
+    build:
+      context: ./lnd
+      dockerfile: Dockerfile
+      args:
+        LND_VERSION: ${LND_VERSION:-v0.18.3-beta}
+    image: lnd:${LND_VERSION:-v0.18.3-beta}
+    container_name: lnd-bob
+    restart: unless-stopped
+    depends_on:
+      bitcoin-research:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "9836:9735"    # P2P Lightning
+      - "10110:10009"  # gRPC
+      - "8181:8080"    # REST
+    volumes:
+      - research_bob_data:/home/lnd/.lnd
+      - ./lnd-bob/lnd-bob.conf:/home/lnd/.lnd/lnd.conf:ro
+    environment:
+      - LND_DATA=/home/lnd/.lnd
+    command: >
+      lnd
+      --configfile=/home/lnd/.lnd/lnd.conf
+      --bitcoind.rpcuser=bitcoinrpc
+      --bitcoind.rpcpass=research_password
+    healthcheck:
+      test: ["CMD", "lncli",
+             "--network=testnet4",
+             "--rpcserver=localhost:10009",
+             "--tlscertpath=/home/lnd/.lnd/tls.cert",
+             "--macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon",
+             "getinfo"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # LND — Carol (Node C / Receiver + Watchtower Client)
+  # ---------------------------------------------------------------------------
+  lnd-carol:
+    build:
+      context: ./lnd
+      dockerfile: Dockerfile
+      args:
+        LND_VERSION: ${LND_VERSION:-v0.18.3-beta}
+    image: lnd:${LND_VERSION:-v0.18.3-beta}
+    container_name: lnd-carol
+    restart: unless-stopped
+    depends_on:
+      bitcoin-research:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "9837:9735"    # P2P Lightning
+      - "10111:10009"  # gRPC
+      - "8182:8080"    # REST
+    volumes:
+      - research_carol_data:/home/lnd/.lnd
+      - ./lnd-carol/lnd-carol.conf:/home/lnd/.lnd/lnd.conf:ro
+    environment:
+      - LND_DATA=/home/lnd/.lnd
+    command: >
+      lnd
+      --configfile=/home/lnd/.lnd/lnd.conf
+      --bitcoind.rpcuser=bitcoinrpc
+      --bitcoind.rpcpass=research_password
+    healthcheck:
+      test: ["CMD", "lncli",
+             "--network=testnet4",
+             "--rpcserver=localhost:10009",
+             "--tlscertpath=/home/lnd/.lnd/tls.cert",
+             "--macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon",
+             "getinfo"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"

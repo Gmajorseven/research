@@ -1,0 +1,15 @@
+# Research Results
+
+This directory is auto-created by `06-channel-states.sh`.
+Each run produces a timestamped subfolder containing JSON snapshots of:
+- `alice_channels.json`
+- `bob_channels.json`
+- `carol_channels.json`
+- `alice_forwarding.json`
+- `alice_pending.json`
+- `bob_pending.json`
+- `carol_pending.json`
+- `network_graph.json`
+- `blockchain_info.json`
+
+These files can be imported into Python/Jupyter for analysis and graphing.
