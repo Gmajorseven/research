@@ -1,0 +1,7 @@
+masterPassword: 'research_thub_password'
+
+accounts:
+  - name: 'Bob (Node B — Middle Hop)'
+    serverUrl: 'lnd-bob:10009'
+    macaroonPath: '/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon'
+    certificatePath: '/lnd/.lnd/tls.cert'

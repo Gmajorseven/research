@@ -19,10 +19,10 @@ RUN set -ex; \
       "linux/arm64") BITCOIN_ARCH="aarch64-linux-gnu" ;; \
       *) echo "Unsupported platform"; exit 1 ;; \
     esac; \
-    curl -sSL "https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/bitcoin-${BITCOIN_VERSION}-${BITCOIN_ARCH}.tar.gz" -o /tmp/bitcoin.tar.gz; \
+    curl -sSL "https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/bitcoin-${BITCOIN_VERSION}-${BITCOIN_ARCH}.tar.gz" -o /tmp/bitcoin-${BITCOIN_VERSION}-${BITCOIN_ARCH}.tar.gz; \
     curl -sSL "https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/SHA256SUMS" -o /tmp/SHA256SUMS; \
-    grep "bitcoin-${BITCOIN_VERSION}-${BITCOIN_ARCH}.tar.gz" /tmp/SHA256SUMS | sha256sum -c -; \
-    tar -xzf /tmp/bitcoin.tar.gz -C /tmp; \
+    cd /tmp && grep "bitcoin-${BITCOIN_VERSION}-${BITCOIN_ARCH}.tar.gz" /tmp/SHA256SUMS | sha256sum -c -; \
+    tar -xzf /tmp/bitcoin-${BITCOIN_VERSION}-${BITCOIN_ARCH}.tar.gz -C /tmp; \
     install -m 0755 -o root -g root -t /usr/local/bin /tmp/bitcoin-${BITCOIN_VERSION}/bin/bitcoind; \
     install -m 0755 -o root -g root -t /usr/local/bin /tmp/bitcoin-${BITCOIN_VERSION}/bin/bitcoin-cli; \
     rm -rf /tmp/bitcoin*; \
@@ -40,10 +40,10 @@ RUN mkdir -p ${BITCOIN_DATA} \
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# testnet4 P2P port
-EXPOSE 48333
-# testnet4 RPC port
-EXPOSE 48332
+# regtest P2P port
+EXPOSE 18444
+# regtest RPC port
+EXPOSE 18443
 # ZMQ rawblock (shared across networks)
 EXPOSE 28332
 # ZMQ rawtx

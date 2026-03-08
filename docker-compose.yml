@@ -1,7 +1,7 @@
 version: '3.9'
 
 # =============================================================================
-# Research Environment: Bitcoin (testnet4) + 3 LND nodes + Watchtower
+# Research Environment: Bitcoin (regtest) + 3 LND nodes + Watchtower
 # =============================================================================
 # Simulates a 3-node Lightning Network for studying:
 #   - Multi-hop payment routing (Alice -> Bob -> Carol)
@@ -55,36 +55,36 @@ volumes:
 services:
 
   # ---------------------------------------------------------------------------
-  # Bitcoin Core — Testnet4
+  # Bitcoin Core — Regtest
   # ---------------------------------------------------------------------------
   bitcoin-research:
     build:
       context: ./bitcoin
       dockerfile: Dockerfile
       args:
-        BITCOIN_VERSION: ${BITCOIN_VERSION:-28.1}
-    image: bitcoin-core:${BITCOIN_VERSION:-28.1}
+        BITCOIN_VERSION: ${BITCOIN_VERSION:-27.0}
+    image: bitcoin-core:${BITCOIN_VERSION:-27.0}
     container_name: bitcoin-research
     restart: unless-stopped
     networks:
       - research_net
     ports:
-      - "48332:48332"  # RPC (testnet4)
-      - "48333:48333"  # P2P (testnet4)
+      - "18443:18443"  # RPC (regtest)
+      - "18444:18444"  # P2P (regtest)
       - "28332:28332"  # ZMQ rawblock
       - "28333:28333"  # ZMQ rawtx
     volumes:
       - research_bitcoin_data:/home/bitcoin/.bitcoin
-      - ./bitcoin/bitcoin-testnet4.conf:/home/bitcoin/.bitcoin/bitcoin.conf:ro
+      - ./bitcoin/bitcoin-regtest.conf:/home/bitcoin/.bitcoin/bitcoin.conf:ro
     environment:
       - BITCOIN_DATA=/home/bitcoin/.bitcoin
     command: >
       bitcoind
-      -testnet4
+      -regtest
       -conf=/home/bitcoin/.bitcoin/bitcoin.conf
       -datadir=/home/bitcoin/.bitcoin
     healthcheck:
-      test: ["CMD", "bitcoin-cli", "-testnet4",
+      test: ["CMD", "bitcoin-cli", "-regtest",
              "-rpcuser=bitcoinrpc",
              "-rpcpassword=research_password",
              "-rpcconnect=127.0.0.1",
@@ -132,12 +132,7 @@ services:
       --bitcoind.rpcuser=bitcoinrpc
       --bitcoind.rpcpass=research_password
     healthcheck:
-      test: ["CMD", "lncli",
-             "--network=testnet4",
-             "--rpcserver=localhost:10009",
-             "--tlscertpath=/home/lnd/.lnd/tls.cert",
-             "--macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon",
-             "getinfo"]
+      test: ["CMD-SHELL", "curl -sf --insecure https://localhost:8080/v1/state > /dev/null"]
       interval: 20s
       timeout: 10s
       retries: 15
@@ -180,12 +175,7 @@ services:
       --bitcoind.rpcuser=bitcoinrpc
       --bitcoind.rpcpass=research_password
     healthcheck:
-      test: ["CMD", "lncli",
-             "--network=testnet4",
-             "--rpcserver=localhost:10009",
-             "--tlscertpath=/home/lnd/.lnd/tls.cert",
-             "--macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon",
-             "getinfo"]
+      test: ["CMD-SHELL", "curl -sf --insecure https://localhost:8080/v1/state > /dev/null"]
       interval: 20s
       timeout: 10s
       retries: 15
@@ -228,16 +218,101 @@ services:
       --bitcoind.rpcuser=bitcoinrpc
       --bitcoind.rpcpass=research_password
     healthcheck:
-      test: ["CMD", "lncli",
-             "--network=testnet4",
-             "--rpcserver=localhost:10009",
-             "--tlscertpath=/home/lnd/.lnd/tls.cert",
-             "--macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon",
-             "getinfo"]
+      test: ["CMD-SHELL", "curl -sf --insecure https://localhost:8080/v1/state > /dev/null"]
       interval: 20s
       timeout: 10s
       retries: 15
       start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # ThunderHub — Alice GUI (http://localhost:3000)
+  # ---------------------------------------------------------------------------
+  thunderhub-alice:
+    build:
+      context: ./thunderhub
+      dockerfile: Dockerfile
+      args:
+        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.13.31}
+    image: thunderhub:${THUNDERHUB_VERSION:-v0.13.31}
+    container_name: thunderhub-alice
+    restart: unless-stopped
+    depends_on:
+      lnd-alice:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "3000:3000"    # ThunderHub UI — Alice
+    volumes:
+      - research_alice_data:/lnd/.lnd:ro
+      - ./thunderhub/thubConfig-alice.yaml:/app/thubConfig.yaml:ro
+    environment:
+      - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # ThunderHub — Bob GUI (http://localhost:3001)
+  # ---------------------------------------------------------------------------
+  thunderhub-bob:
+    build:
+      context: ./thunderhub
+      dockerfile: Dockerfile
+      args:
+        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.13.31}
+    image: thunderhub:${THUNDERHUB_VERSION:-v0.13.31}
+    container_name: thunderhub-bob
+    restart: unless-stopped
+    depends_on:
+      lnd-bob:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "3001:3000"    # ThunderHub UI — Bob
+    volumes:
+      - research_bob_data:/lnd/.lnd:ro
+      - ./thunderhub/thubConfig-bob.yaml:/app/thubConfig.yaml:ro
+    environment:
+      - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # ThunderHub — Carol GUI (http://localhost:3002)
+  # ---------------------------------------------------------------------------
+  thunderhub-carol:
+    build:
+      context: ./thunderhub
+      dockerfile: Dockerfile
+      args:
+        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.13.31}
+    image: thunderhub:${THUNDERHUB_VERSION:-v0.13.31}
+    container_name: thunderhub-carol
+    restart: unless-stopped
+    depends_on:
+      lnd-carol:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "3002:3000"    # ThunderHub UI — Carol
+    volumes:
+      - research_carol_data:/lnd/.lnd:ro
+      - ./thunderhub/thubConfig-carol.yaml:/app/thubConfig.yaml:ro
+    environment:
+      - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
     logging:
       driver: json-file
       options:

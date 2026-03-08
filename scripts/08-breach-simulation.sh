@@ -2,7 +2,7 @@
 # =============================================================================
 # 08-breach-simulation.sh — Channel Breach Simulation (Fraud Prevention Study)
 # =============================================================================
-# PURPOSE (research only — testnet4, all nodes owned by researcher):
+# PURPOSE (research only — regtest, all nodes owned by researcher):
 #   Demonstrates the full lifecycle of a Lightning Network channel breach
 #   and the automatic justice/penalty transaction response by the watchtower.
 #
@@ -142,7 +142,7 @@ echo ""
 # Get the commitment transaction from LND's channel DB via pendingchannels
 # after a force-close request, or from the channel's last commit tx.
 # LND exposes the current commitment tx via `lncli closechannel --force` in
-# dry-run, but the cleanest way in testnet4 research is:
+# dry-run, but the cleanest way in regtest research is:
 #   1. Use `lncli getchanbackup` to record the channel point
 #   2. Grab the raw commitment tx via Bitcoin Core's mempool after force-close
 
@@ -151,7 +151,7 @@ echo ""
 # Strategy: snapshot balances → advance state → force-close → capture old tx
 # → abandon the force-close via reorg, then re-broadcast it ourselves.
 
-# Simpler approach available in LND testnet4 research:
+# Simpler approach available in LND regtest research:
 # Use `lncli forceclosechannel` then capture the tx from mempool BEFORE mining.
 # We then check if watchtower would respond (it won't for a current state).
 # Then we do: payments (state advances, old tx is now revoked) → broadcast old tx.
@@ -220,7 +220,7 @@ echo "Commitment tx captured:"
 echo "  TXID  : ${OLD_COMMIT_TXID}"
 echo "  Raw tx: saved to ${RESULTS}/phase1_commitment_tx_raw.txt"
 
-# Reject the force-close by removing it from mempool (testnet4: must wait for confirmation)
+# Reject the force-close by removing it from mempool (regtest: just don't mine)
 echo ""
 echo "NOT mining — commitment tx stays in mempool but unconfirmed."
 echo "This is now our 'old state' raw transaction for the breach attempt."
@@ -231,7 +231,7 @@ echo "This is now our 'old state' raw transaction for the breach attempt."
 echo ""
 echo "=== PHASE 2: Clear mempool (evict uncommitted closing tx) ==========="
 echo ""
-echo "NOTE: On testnet4, LND will reuse the same commitment tx when force-closing."
+echo "NOTE: In regtest, LND will reuse the same commitment tx when force-closing."
 echo "We need to: evict the tx, wait for channel to re-establish, advance state,"
 echo "then re-broadcast the captured raw tx to simulate the breach."
 echo ""
@@ -239,7 +239,7 @@ echo "Evicting mempool by restarting LND nodes (without mining)..."
 
 # Use bitcoin core's testmempoolaccept / invalidation approach:
 # Mine a block NOT containing the closing tx (it will be evicted after ~2 hours
-# on public networks, but we can use prioritisetransaction to exclude it)
+# in real networks, but in regtest we can use prioritisetransaction to exclude it)
 btc prioritisetransaction "${OLD_COMMIT_TXID}" 0 -99999999 2>/dev/null || true
 
 # Mine a block — the deprioritised tx may be excluded

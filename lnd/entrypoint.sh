@@ -3,7 +3,7 @@ set -e
 
 # Drop privileges from root to the lnd user
 if [ "$(id -u)" = "0" ]; then
-    chown -R lnd:lnd "${LND_DATA:-/home/lnd/.lnd}"
+    chown -R lnd:lnd "${LND_DATA:-/home/lnd/.lnd}" 2>/dev/null || true
     exec gosu lnd "$0" "$@"
 fi
 

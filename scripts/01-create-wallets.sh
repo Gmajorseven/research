@@ -13,7 +13,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/helpers.sh"
 
-NETWORK="testnet4"
+NETWORK="regtest"
 PASSWORD="research_wallet_password"  # Use a stronger password for real work
 
 create_wallet() {

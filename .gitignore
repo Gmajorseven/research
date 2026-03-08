@@ -1,0 +1,38 @@
+# =============================================================================
+# Research Environment — .gitignore
+# =============================================================================
+
+# ---- Node runtime data (LND / Bitcoin) --------------------------------------
+data/alice/
+data/bob/
+data/carol/
+data/bitcoin/
+
+# ---- Secrets & credentials --------------------------------------------------
+*.macaroon
+tls.cert
+tls.key
+*.key
+letsencrypt/
+
+# ---- Environment variables --------------------------------------------------
+#.env
+.env.local
+.env.*.local
+
+# ---- Logs -------------------------------------------------------------------
+*.log
+logs/
+
+# ---- ThunderHub build output ------------------------------------------------
+thunderhub/node_modules/
+thunderhub/.next/
+thunderhub/dist/
+
+# ---- OS / editor artifacts --------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

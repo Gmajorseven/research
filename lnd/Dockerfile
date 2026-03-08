@@ -18,10 +18,10 @@ RUN set -ex; \
       "linux/arm64") LND_ARCH="linux-arm64" ;; \
       *) echo "Unsupported platform"; exit 1 ;; \
     esac; \
-    curl -sSL "https://github.com/lightningnetwork/lnd/releases/download/${LND_VERSION}/lnd-${LND_ARCH}-${LND_VERSION}.tar.gz" -o /tmp/lnd.tar.gz; \
+    curl -sSL "https://github.com/lightningnetwork/lnd/releases/download/${LND_VERSION}/lnd-${LND_ARCH}-${LND_VERSION}.tar.gz" -o /tmp/lnd-${LND_ARCH}-${LND_VERSION}.tar.gz; \
     curl -sSL "https://github.com/lightningnetwork/lnd/releases/download/${LND_VERSION}/manifest-${LND_VERSION}.txt" -o /tmp/manifest.txt; \
-    grep "lnd-${LND_ARCH}-${LND_VERSION}.tar.gz" /tmp/manifest.txt | sha256sum -c -; \
-    tar -xzf /tmp/lnd.tar.gz -C /tmp; \
+    cd /tmp && grep "lnd-${LND_ARCH}-${LND_VERSION}.tar.gz" /tmp/manifest.txt | sha256sum -c -; \
+    tar -xzf /tmp/lnd-${LND_ARCH}-${LND_VERSION}.tar.gz -C /tmp; \
     install -m 0755 -o root -g root -t /usr/local/bin /tmp/lnd-${LND_ARCH}-${LND_VERSION}/lnd; \
     install -m 0755 -o root -g root -t /usr/local/bin /tmp/lnd-${LND_ARCH}-${LND_VERSION}/lncli; \
     rm -rf /tmp/lnd*; \

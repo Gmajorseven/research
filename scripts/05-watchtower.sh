@@ -32,17 +32,17 @@ echo ""
 echo "--- Alice's Watchtower Server info ----------------------------------"
 alice tower info 2>/dev/null || \
   docker exec lnd-alice lncli \
-    --network=testnet4 --rpcserver=localhost:10009 \
+    --network=regtest --rpcserver=localhost:10009 \
     --tlscertpath=/home/lnd/.lnd/tls.cert \
-    --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon \
+    --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
     tower info
 
 echo ""
 echo "--- Getting Alice's tower URI ---------------------------------------"
 TOWER_URI=$(docker exec lnd-alice lncli \
-  --network=testnet4 --rpcserver=localhost:10009 \
+  --network=regtest --rpcserver=localhost:10009 \
   --tlscertpath=/home/lnd/.lnd/tls.cert \
-  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon \
+  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
   tower info | jq -r '.uris[0]')
 
 echo "Tower URI: ${TOWER_URI}"
@@ -59,42 +59,42 @@ echo ""
 echo "--- Registering Bob as a watchtower client --------------------------"
 echo "Bob adding tower ${TOWER_URI}..."
 docker exec lnd-bob lncli \
-  --network=testnet4 --rpcserver=localhost:10009 \
+  --network=regtest --rpcserver=localhost:10009 \
   --tlscertpath=/home/lnd/.lnd/tls.cert \
-  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon \
+  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
   wtclient add "${TOWER_URI}"
 
 echo ""
 echo "--- Registering Carol as a watchtower client ------------------------"
 echo "Carol adding tower ${TOWER_URI}..."
 docker exec lnd-carol lncli \
-  --network=testnet4 --rpcserver=localhost:10009 \
+  --network=regtest --rpcserver=localhost:10009 \
   --tlscertpath=/home/lnd/.lnd/tls.cert \
-  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon \
+  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
   wtclient add "${TOWER_URI}"
 
 echo ""
 echo "--- Verify Bob's tower sessions -------------------------------------"
 docker exec lnd-bob lncli \
-  --network=testnet4 --rpcserver=localhost:10009 \
+  --network=regtest --rpcserver=localhost:10009 \
   --tlscertpath=/home/lnd/.lnd/tls.cert \
-  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon \
+  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
   wtclient towers | jq '[.towers[] | {pubkey, active_session_candidate, num_sessions}]'
 
 echo ""
 echo "--- Verify Carol's tower sessions -----------------------------------"
 docker exec lnd-carol lncli \
-  --network=testnet4 --rpcserver=localhost:10009 \
+  --network=regtest --rpcserver=localhost:10009 \
   --tlscertpath=/home/lnd/.lnd/tls.cert \
-  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon \
+  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
   wtclient towers | jq '[.towers[] | {pubkey, active_session_candidate, num_sessions}]'
 
 echo ""
 echo "--- Tower Statistics (Alice) ----------------------------------------"
 docker exec lnd-alice lncli \
-  --network=testnet4 --rpcserver=localhost:10009 \
+  --network=regtest --rpcserver=localhost:10009 \
   --tlscertpath=/home/lnd/.lnd/tls.cert \
-  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/testnet4/admin.macaroon \
+  --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
   tower stats 2>/dev/null || echo "(tower stats not available in this LND version)"
 
 echo ""

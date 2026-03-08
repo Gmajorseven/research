@@ -14,7 +14,7 @@
 # ---- lncli wrappers ---------------------------------------------------------
 # Each calls lncli inside the correct container with the right flags.
 
-NETWORK="testnet4"
+NETWORK="regtest"
 
 alice() {
   docker exec lnd-alice lncli \
@@ -46,22 +46,22 @@ carol() {
 # ---- bitcoin-cli shortcut ---------------------------------------------------
 btc() {
   docker exec bitcoin-research bitcoin-cli \
-    -testnet4 \
+    -regtest \
     -rpcuser=bitcoinrpc \
     -rpcpassword=research_password \
     "$@"
 }
 
 # ---- Mine N blocks ----------------------------------------------------------
-# NOTE: generatetoaddress is not available on testnet4 (public network).
-# Blocks are mined by the network. Use a testnet4 faucet to fund wallets.
 mine() {
-  echo "⚠ mine() is not available on testnet4."
-  echo "  Use a testnet4 faucet to fund your wallets:"
-  echo "  https://mempool.space/testnet4"
+  local n="${1:-1}"
+  local addr
+  addr=$(btc getnewaddress)
+  btc generatetoaddress "${n}" "${addr}"
+  echo "Mined ${n} block(s) to ${addr}"
 }
 
-echo "✔ Research helpers loaded (testnet4)."
+echo "✔ Research helpers loaded."
 echo "  Commands: alice, bob, carol, btc, mine"
 echo "  Example:  alice getinfo"
-echo "            btc getblockchaininfo"
+echo "            mine 6"
