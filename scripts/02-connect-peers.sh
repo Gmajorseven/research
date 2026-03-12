@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 03-connect-peers.sh — Connect nodes and open channels
+# 02-connect-peers.sh — Connect nodes and open channels
 # =============================================================================
 # Builds the network topology:
 #
@@ -11,7 +11,7 @@
 # Both channels are announced so routing tables are populated.
 #
 # Usage:
-#   bash research/scripts/03-connect-peers.sh
+#   bash research/scripts/02-connect-peers.sh
 # =============================================================================
 set -euo pipefail
 
@@ -70,4 +70,4 @@ echo "--- Bob channels ---"
 bob listchannels | jq '[.channels[] | {remote_pubkey, capacity, local_balance, remote_balance, active}]'
 
 echo ""
-echo "Next: bash research/scripts/04-payment-routing.sh"
+echo "Next: bash research/scripts/03-payment-routing.sh"

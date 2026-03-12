@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 02-fund-nodes.sh — Mine regtest blocks and fund Alice, Bob, Carol
+# 01-fund-nodes.sh — Mine regtest blocks and fund Alice, Bob, Carol
 # =============================================================================
 # In regtest, coins are mined from nothing — no real value.
 # We:
@@ -8,7 +8,7 @@
 #   2. Give Alice, Bob, and Carol on-chain funds to open channels
 #
 # Usage:
-#   bash research/scripts/02-fund-nodes.sh
+#   bash research/scripts/01-fund-nodes.sh
 # =============================================================================
 set -euo pipefail
 
@@ -47,4 +47,4 @@ echo -n "Bob on-chain  : "; bob   walletbalance | jq '.confirmed_balance'
 echo -n "Carol on-chain: "; carol walletbalance | jq '.confirmed_balance'
 
 echo ""
-echo "Next: bash research/scripts/03-connect-peers.sh"
+echo "Next: bash research/scripts/02-connect-peers.sh"

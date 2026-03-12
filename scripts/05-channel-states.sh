@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 06-channel-states.sh — Inspect channel state machine and revocation data
+# 05-channel-states.sh — Inspect channel state machine and revocation data
 # =============================================================================
 # This script collects and displays the data structures that underpin
 # the fraud prevention mechanism — for research documentation purposes.
@@ -12,7 +12,7 @@
 #   - Watchtower session statistics
 #
 # Usage:
-#   bash research/scripts/06-channel-states.sh
+#   bash research/scripts/05-channel-states.sh
 # =============================================================================
 set -euo pipefail
 
@@ -142,5 +142,5 @@ ls -lh "${OUTPUT_DIR}"
 
 echo ""
 echo "To run more payments and re-observe state changes:"
-echo "  bash research/scripts/04-payment-routing.sh 10000"
-echo "  bash research/scripts/06-channel-states.sh"
+echo "  bash research/scripts/03-payment-routing.sh 10000"
+echo "  bash research/scripts/05-channel-states.sh"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 07-monitor-logs.sh — Monitor all nodes for fraud/security events
+# 06-monitor-logs.sh — Monitor all nodes for fraud/security events
 # =============================================================================
 # Tails Docker logs for all nodes and highlights events relevant to:
 #   - Channel state updates (commitment transactions)
@@ -9,7 +9,7 @@
 #   - Any breach detection events
 #
 # Usage:
-#   bash research/scripts/07-monitor-logs.sh
+#   bash research/scripts/06-monitor-logs.sh
 #   Ctrl+C to stop.
 # =============================================================================
 

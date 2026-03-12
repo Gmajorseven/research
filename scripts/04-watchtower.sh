@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 05-watchtower.sh — Configure and verify the Watchtower (fraud prevention)
+# 04-watchtower.sh — Configure and verify the Watchtower (fraud prevention)
 # =============================================================================
 # The LND Watchtower is a key fraud-prevention mechanism in the Lightning
 # Network. This script:
@@ -19,7 +19,7 @@
 #     sends ALL channel funds to the honest party as a penalty.
 #
 # Usage:
-#   bash research/scripts/05-watchtower.sh
+#   bash research/scripts/04-watchtower.sh
 # =============================================================================
 set -euo pipefail
 
@@ -142,4 +142,4 @@ cat <<'INFO'
 INFO
 
 echo "Watchtower setup complete."
-echo "Next: bash research/scripts/06-channel-states.sh"
+echo "Next: bash research/scripts/05-channel-states.sh"

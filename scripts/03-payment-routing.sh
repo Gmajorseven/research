@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 04-payment-routing.sh — Simulate multi-hop payment routing
+# 03-payment-routing.sh — Simulate multi-hop payment routing
 # =============================================================================
 # Demonstrates HTLC-based payment routing along the path:
 #
@@ -13,7 +13,7 @@
 #   - All state transitions are logged so you can study channel balances
 #
 # Usage:
-#   bash research/scripts/04-payment-routing.sh [amount_sat]
+#   bash research/scripts/03-payment-routing.sh [amount_sat]
 # =============================================================================
 set -euo pipefail
 
@@ -96,4 +96,4 @@ carol listpayments 2>/dev/null || carol listinvoices | jq '[.invoices[-3:] | .[]
 
 echo ""
 echo "Routing simulation complete."
-echo "Next: bash research/scripts/05-watchtower.sh"
+echo "Next: bash research/scripts/04-watchtower.sh"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 08-breach-simulation.sh — Channel Breach Simulation (Fraud Prevention Study)
+# 07-breach-simulation.sh — Channel Breach Simulation (Fraud Prevention Study)
 # =============================================================================
 # PURPOSE (research only — regtest, all nodes owned by researcher):
 #   Demonstrates the full lifecycle of a Lightning Network channel breach
@@ -30,13 +30,13 @@
 #   - Then we advance state (make payments), then broadcast the captured tx
 #
 # PRE-REQUISITES:
-#   1. Complete scripts 01-07 first
+#   1. Complete scripts 01-06 first
 #   2. Bob<->Carol channel must exist and have at least 2 state updates
-#   3. Watchtower must be active (script 05 completed)
+#   3. Watchtower must be active (script 04 completed)
 #   4. Bob must be registered as watchtower client with Alice
 #
 # Usage:
-#   bash research/scripts/08-breach-simulation.sh
+#   bash research/scripts/07-breach-simulation.sh
 #
 # Results saved to: research/results/breach_<timestamp>/
 # =============================================================================
@@ -77,7 +77,7 @@ echo "Carol: $(echo "${CAROL_INFO}" | jq -r '.alias') — $(echo "${CAROL_INFO}"
 echo ""
 echo "Checking Alice's watchtower server..."
 alice tower info | tee "${RESULTS}/phase0_watchtower_info.json" || {
-  echo "WARNING: Watchtower may not be active. Run script 05-watchtower.sh first."
+  echo "WARNING: Watchtower may not be active. Run script 04-watchtower.sh first."
 }
 
 # Verify Bob is registered as watchtower client
@@ -100,7 +100,7 @@ CHANNEL_RAW=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
 if [[ "${CHANNEL_RAW}" == "null" || -z "${CHANNEL_RAW}" ]]; then
   echo ""
   echo "ERROR: No Bob<->Carol channel found."
-  echo "Run script 03-connect-peers.sh first."
+  echo "Run script 02-connect-peers.sh first."
   exit 1
 fi
 
