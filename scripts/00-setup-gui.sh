@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 09-setup-gui.sh — Prepare the full stack so ThunderHub is ready to use
+# 00-setup-gui.sh — Prepare the full stack so ThunderHub is ready to use
 # =============================================================================
 # This script is intentionally idempotent. It will:
 #   1. Start Bitcoin + LND (+ optionally rebuild images)
@@ -10,8 +10,8 @@
 #   5. Verify the GUI ports respond and ThunderHub connects to each node
 #
 # Usage:
-#   bash scripts/09-setup-gui.sh
-#   bash scripts/09-setup-gui.sh --build
+#   bash scripts/00-setup-gui.sh
+#   bash scripts/00-setup-gui.sh --build
 #
 # Optional environment variables:
 #   WALLET_PASSWORD=research_wallet_password
@@ -35,7 +35,7 @@ for arg in "$@"; do
       ;;
     *)
       echo "Unknown argument: ${arg}" >&2
-      echo "Usage: bash scripts/09-setup-gui.sh [--build]" >&2
+      echo "Usage: bash scripts/00-setup-gui.sh [--build]" >&2
       exit 1
       ;;
   esac
@@ -318,8 +318,8 @@ ThunderHub URLs:
   Carol: http://localhost:3002
 
 Wallet password:
-  research_wallet_password
+  research_thub_password
 
 If you changed the password, re-run with:
-  WALLET_PASSWORD=your_password bash scripts/09-setup-gui.sh
+  WALLET_PASSWORD=your_password bash scripts/00-setup-gui.sh
 EOF
