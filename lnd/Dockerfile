@@ -1,6 +1,6 @@
 FROM debian:bookworm-slim
 
-ARG LND_VERSION=v0.18.3-beta
+ARG LND_VERSION=v0.20.1-beta
 ARG TARGETPLATFORM
 
 # Install dependencies

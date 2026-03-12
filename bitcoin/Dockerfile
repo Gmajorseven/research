@@ -1,6 +1,6 @@
 FROM debian:bookworm-slim
 
-ARG BITCOIN_VERSION=28.1
+ARG BITCOIN_VERSION=29.3
 ARG TARGETPLATFORM
 
 # Install dependencies

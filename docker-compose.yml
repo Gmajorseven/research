@@ -62,8 +62,8 @@ services:
       context: ./bitcoin
       dockerfile: Dockerfile
       args:
-        BITCOIN_VERSION: ${BITCOIN_VERSION:-27.0}
-    image: bitcoin-core:${BITCOIN_VERSION:-27.0}
+        BITCOIN_VERSION: ${BITCOIN_VERSION:-29.3}
+    image: bitcoin-core:${BITCOIN_VERSION:-29.3}
     container_name: bitcoin-research
     restart: unless-stopped
     networks:
@@ -107,8 +107,8 @@ services:
       context: ./lnd
       dockerfile: Dockerfile
       args:
-        LND_VERSION: ${LND_VERSION:-v0.18.3-beta}
-    image: lnd:${LND_VERSION:-v0.18.3-beta}
+        LND_VERSION: ${LND_VERSION:-v0.20.1-beta}
+    image: lnd:${LND_VERSION:-v0.20.1-beta}
     container_name: lnd-alice
     restart: unless-stopped
     depends_on:
@@ -151,8 +151,8 @@ services:
       context: ./lnd
       dockerfile: Dockerfile
       args:
-        LND_VERSION: ${LND_VERSION:-v0.18.3-beta}
-    image: lnd:${LND_VERSION:-v0.18.3-beta}
+        LND_VERSION: ${LND_VERSION:-v0.20.1-beta}
+    image: lnd:${LND_VERSION:-v0.20.1-beta}
     container_name: lnd-bob
     restart: unless-stopped
     depends_on:
@@ -194,8 +194,8 @@ services:
       context: ./lnd
       dockerfile: Dockerfile
       args:
-        LND_VERSION: ${LND_VERSION:-v0.18.3-beta}
-    image: lnd:${LND_VERSION:-v0.18.3-beta}
+        LND_VERSION: ${LND_VERSION:-v0.20.1-beta}
+    image: lnd:${LND_VERSION:-v0.20.1-beta}
     container_name: lnd-carol
     restart: unless-stopped
     depends_on:
@@ -237,9 +237,10 @@ services:
       context: ./thunderhub
       dockerfile: Dockerfile
       args:
-        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.13.31}
-    image: thunderhub:${THUNDERHUB_VERSION:-v0.13.31}
+        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.15.1}
+    image: thunderhub:${THUNDERHUB_VERSION:-v0.15.1}
     container_name: thunderhub-alice
+    user: "1001:1001"
     restart: unless-stopped
     depends_on:
       lnd-alice:
@@ -247,12 +248,14 @@ services:
     networks:
       - research_net
     ports:
-      - "3000:3000"    # ThunderHub UI — Alice
+      - "3000:3001"    # ThunderHub UI — Alice
     volumes:
       - research_alice_data:/lnd/.lnd:ro
       - ./thunderhub/thubConfig-alice.yaml:/app/thubConfig.yaml:ro
     environment:
       - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
+      - HOST=0.0.0.0
+      - PORT=3001
     logging:
       driver: json-file
       options:
@@ -267,9 +270,10 @@ services:
       context: ./thunderhub
       dockerfile: Dockerfile
       args:
-        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.13.31}
-    image: thunderhub:${THUNDERHUB_VERSION:-v0.13.31}
+        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.15.1}
+    image: thunderhub:${THUNDERHUB_VERSION:-v0.15.1}
     container_name: thunderhub-bob
+    user: "1001:1001"
     restart: unless-stopped
     depends_on:
       lnd-bob:
@@ -277,12 +281,14 @@ services:
     networks:
       - research_net
     ports:
-      - "3001:3000"    # ThunderHub UI — Bob
+      - "3001:3001"    # ThunderHub UI — Bob
     volumes:
       - research_bob_data:/lnd/.lnd:ro
       - ./thunderhub/thubConfig-bob.yaml:/app/thubConfig.yaml:ro
     environment:
       - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
+      - HOST=0.0.0.0
+      - PORT=3001
     logging:
       driver: json-file
       options:
@@ -297,9 +303,10 @@ services:
       context: ./thunderhub
       dockerfile: Dockerfile
       args:
-        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.13.31}
-    image: thunderhub:${THUNDERHUB_VERSION:-v0.13.31}
+        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.15.1}
+    image: thunderhub:${THUNDERHUB_VERSION:-v0.15.1}
     container_name: thunderhub-carol
+    user: "1001:1001"
     restart: unless-stopped
     depends_on:
       lnd-carol:
@@ -307,12 +314,14 @@ services:
     networks:
       - research_net
     ports:
-      - "3002:3000"    # ThunderHub UI — Carol
+      - "3002:3001"    # ThunderHub UI — Carol
     volumes:
       - research_carol_data:/lnd/.lnd:ro
       - ./thunderhub/thubConfig-carol.yaml:/app/thubConfig.yaml:ro
     environment:
       - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
+      - HOST=0.0.0.0
+      - PORT=3001
     logging:
       driver: json-file
       options:
