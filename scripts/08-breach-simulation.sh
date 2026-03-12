@@ -7,10 +7,15 @@
 #   and the automatic justice/penalty transaction response by the watchtower.
 #
 # SCENARIO:
-#   Bob force-closes the Alice<->Bob channel using an OLD (revoked) commitment
+#   Carol force-closes the Bob<->Carol channel using an OLD (revoked) commitment
 #   transaction. The watchtower (hosted by Alice) detects the breach on-chain
-#   and broadcasts a justice transaction that sweeps ALL channel funds to Alice
-#   as a penalty — Bob loses everything.
+#   and broadcasts a justice transaction that sweeps ALL channel funds to Bob
+#   as a penalty — Carol loses everything.
+#
+# ROLES:
+#   Alice — Watchtower server (monitors the chain for Bob)
+#   Bob   — Honest party (protected by Alice's watchtower)
+#   Carol — Cheater (broadcasts revoked commitment tx)
 #
 # WHAT THIS DEMONSTRATES FOR YOUR RESEARCH:
 #   1. How commitment transactions represent channel state
@@ -26,8 +31,9 @@
 #
 # PRE-REQUISITES:
 #   1. Complete scripts 01-07 first
-#   2. Alice<->Bob channel must exist and have at least 2 state updates
+#   2. Bob<->Carol channel must exist and have at least 2 state updates
 #   3. Watchtower must be active (script 05 completed)
+#   4. Bob must be registered as watchtower client with Alice
 #
 # Usage:
 #   bash research/scripts/08-breach-simulation.sh
@@ -62,20 +68,38 @@ echo "=== PHASE 0: Pre-flight checks ======================================"
 echo "Checking nodes are reachable..."
 ALICE_INFO=$(alice getinfo)
 BOB_INFO=$(bob getinfo)
-echo "Alice: $(echo "${ALICE_INFO}" | jq -r '.alias') — $(echo "${ALICE_INFO}" | jq -r '.identity_pubkey' | cut -c1-20)..."
-echo "Bob  : $(echo "${BOB_INFO}"   | jq -r '.alias') — $(echo "${BOB_INFO}"   | jq -r '.identity_pubkey' | cut -c1-20)..."
+CAROL_INFO=$(carol getinfo)
+echo "Alice: $(echo "${ALICE_INFO}" | jq -r '.alias') — $(echo "${ALICE_INFO}" | jq -r '.identity_pubkey' | cut -c1-20)... (watchtower)"
+echo "Bob  : $(echo "${BOB_INFO}"   | jq -r '.alias') — $(echo "${BOB_INFO}"   | jq -r '.identity_pubkey' | cut -c1-20)... (honest party)"
+echo "Carol: $(echo "${CAROL_INFO}" | jq -r '.alias') — $(echo "${CAROL_INFO}" | jq -r '.identity_pubkey' | cut -c1-20)... (cheater)"
 
-# Find Alice<->Bob channel
+# Verify Alice's watchtower server is running
 echo ""
-echo "Looking for Alice<->Bob channel..."
+echo "Checking Alice's watchtower server..."
+alice tower info | tee "${RESULTS}/phase0_watchtower_info.json" || {
+  echo "WARNING: Watchtower may not be active. Run script 05-watchtower.sh first."
+}
+
+# Verify Bob is registered as watchtower client
+echo ""
+echo "Checking Bob's watchtower client registration..."
+bob wtclient towers | jq '[.towers[] | {pubkey, active_session_candidate, num_sessions}]' \
+  | tee "${RESULTS}/phase0_bob_wtclient.json" || {
+  echo "WARNING: Bob may not be registered as watchtower client."
+}
+
+# Find Bob<->Carol channel
+echo ""
+echo "Looking for Bob<->Carol channel..."
+CAROL_PUBKEY=$(echo "${CAROL_INFO}" | jq -r '.identity_pubkey')
 BOB_PUBKEY=$(echo "${BOB_INFO}" | jq -r '.identity_pubkey')
 
-CHANNEL_RAW=$(alice listchannels | jq --arg pub "${BOB_PUBKEY}" \
+CHANNEL_RAW=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
   '[.channels[] | select(.remote_pubkey == $pub)] | .[0]')
 
 if [[ "${CHANNEL_RAW}" == "null" || -z "${CHANNEL_RAW}" ]]; then
   echo ""
-  echo "ERROR: No Alice<->Bob channel found."
+  echo "ERROR: No Bob<->Carol channel found."
   echo "Run script 03-connect-peers.sh first."
   exit 1
 fi
@@ -97,8 +121,8 @@ echo "Channel found:"
 echo "  Channel point : ${CHAN_POINT}"
 echo "  Channel ID    : ${CHAN_ID}"
 echo "  Capacity      : ${CAPACITY} sat"
-echo "  Local balance : ${LOCAL_BAL} sat (Alice's side)"
-echo "  Remote balance: ${REMOTE_BAL} sat (Bob's side)"
+echo "  Local balance : ${LOCAL_BAL} sat (Bob's side)"
+echo "  Remote balance: ${REMOTE_BAL} sat (Carol's side)"
 echo "  State updates : ${NUM_UPDATES}"
 echo "  CSV delay     : ${CSV_DELAY} blocks"
 echo ""
@@ -112,15 +136,14 @@ if [[ "${NUM_UPDATES}" -lt 2 ]]; then
   echo ""
 
   for i in 1 2 3; do
-    CAROL_PUBKEY=$(carol getinfo | jq -r '.identity_pubkey')
-    INV=$(carol addinvoice --amt 1000 --memo "state_advance_${i}" | jq -r '.payment_request')
-    alice sendpayment --pay_req="${INV}" --timeout=30 --fee_limit=100 || true
+    INV=$(alice addinvoice --amt 1000 --memo "state_advance_${i}" | jq -r '.payment_request')
+    carol sendpayment --pay_req="${INV}" --timeout=30 --fee_limit=100 || true
     echo "  Payment ${i}/3 sent."
   done
   mine 1
 
   # Refresh channel state
-  CHANNEL_RAW=$(alice listchannels | jq --arg pub "${BOB_PUBKEY}" \
+  CHANNEL_RAW=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
     '[.channels[] | select(.remote_pubkey == $pub)] | .[0]')
   NUM_UPDATES=$(echo "${CHANNEL_RAW}" | jq -r '.num_updates')
   echo "Channel now has ${NUM_UPDATES} state updates."
@@ -158,7 +181,7 @@ echo ""
 
 # Step 1a: Record the state BEFORE advancing
 echo "Recording pre-advance state snapshot..."
-SNAPSHOT_BEFORE=$(alice listchannels | jq --arg pub "${BOB_PUBKEY}" \
+SNAPSHOT_BEFORE=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
   '[.channels[] | select(.remote_pubkey == $pub)] | .[0] | {
     num_updates,
     local_balance,
@@ -171,11 +194,11 @@ echo "${SNAPSHOT_BEFORE}" | tee "${RESULTS}/phase1_snapshot_before.json"
 # Step 1b: Perform a force-close NOW to capture the commitment tx from mempool
 #           (this is the CURRENT valid state — not yet breached)
 echo ""
-echo "Initiating force-close of Alice<->Bob channel to capture commitment tx..."
-echo "(We grab the raw tx from mempool BEFORE mining — this tx reflects current state)"
+echo "Initiating force-close of Bob<->Carol channel to capture commitment tx..."
+echo "(Carol force-closes — we grab the raw tx from mempool BEFORE mining)"
 echo ""
 
-alice closechannel \
+carol closechannel \
   --chan_point="${CHAN_POINT}" \
   --force 2>&1 | tee "${RESULTS}/phase1_forcecloseoutput.txt" || true
 
@@ -211,7 +234,7 @@ done
 
 if [[ -z "${OLD_COMMIT_TXID}" ]]; then
   echo "ERROR: Could not find commitment tx in mempool."
-  echo "The channel may have been closed already. Check: alice pendingchannels"
+  echo "The channel may have been closed already. Check: carol pendingchannels"
   exit 1
 fi
 
@@ -251,7 +274,7 @@ echo "Mempool size after mining: ${MEMPOOL_AFTER} txs"
 if btc getrawmempool | jq -r '.[]' | grep -q "${OLD_COMMIT_TXID}"; then
   echo "Commitment tx still in mempool. Force-evicting..."
   # Bump fee of a conflicting tx or use abandon; in LND we can use abandonChannelCleanup
-  alice abandonchannel --chan_point="${CHAN_POINT}" 2>/dev/null || true
+  carol abandonchannel --chan_point="${CHAN_POINT}" 2>/dev/null || true
   sleep 2
   mine 1
 fi
@@ -267,13 +290,13 @@ echo "=== PHASE 3: Reopen channel and advance state ======================="
 echo "(The captured tx is now a REVOKED old state)"
 echo ""
 
-echo "Reconnecting Alice -> Bob..."
-alice connect "${BOB_PUBKEY}@lnd-bob:9735" 2>/dev/null || true
+echo "Reconnecting Bob -> Carol..."
+bob connect "${CAROL_PUBKEY}@lnd-carol:9735" 2>/dev/null || true
 sleep 2
 
-echo "Opening new Alice -> Bob channel..."
-alice openchannel \
-  --node_key="${BOB_PUBKEY}" \
+echo "Opening new Bob -> Carol channel..."
+bob openchannel \
+  --node_key="${CAROL_PUBKEY}" \
   --local_amt=500000 \
   --push_amt=100000 2>&1 | tee "${RESULTS}/phase3_reopen_channel.txt"
 
@@ -281,7 +304,7 @@ mine 6
 sleep 5
 
 # Refresh channel info
-NEW_CHANNEL=$(alice listchannels | jq --arg pub "${BOB_PUBKEY}" \
+NEW_CHANNEL=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
   '[.channels[] | select(.remote_pubkey == $pub)] | .[0]')
 NEW_CHAN_POINT=$(echo "${NEW_CHANNEL}" | jq -r '.channel_point')
 echo ""
@@ -290,16 +313,16 @@ echo "${NEW_CHANNEL}" > "${RESULTS}/phase3_new_channel.json"
 
 echo ""
 echo "Advancing state with 5 payments (making any old commitment tx revoked)..."
-CAROL_PUBKEY=$(carol getinfo | jq -r '.identity_pubkey')
+echo "(Alice creates invoices, Carol pays — routes through Bob<->Carol channel)"
 
 for i in $(seq 1 5); do
-  INV=$(carol addinvoice --amt 5000 --memo "breach_test_payment_${i}" | jq -r '.payment_request')
-  alice sendpayment --pay_req="${INV}" --timeout=30 --fee_limit=100 || true
+  INV=$(alice addinvoice --amt 5000 --memo "breach_test_payment_${i}" | jq -r '.payment_request')
+  carol sendpayment --pay_req="${INV}" --timeout=30 --fee_limit=100 || true
   echo "  Payment ${i}/5 done."
 done
 mine 1
 
-UPDATED_CHANNEL=$(alice listchannels | jq --arg pub "${BOB_PUBKEY}" \
+UPDATED_CHANNEL=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
   '[.channels[] | select(.remote_pubkey == $pub)] | .[0]')
 UPDATED_UPDATES=$(echo "${UPDATED_CHANNEL}" | jq -r '.num_updates')
 echo ""
@@ -315,7 +338,7 @@ echo ""
 echo "Old/revoked tx TXID : ${OLD_COMMIT_TXID}"
 echo "Old tx raw          : ${OLD_COMMIT_RAWTX:0:60}..."
 echo ""
-echo "Broadcasting old state to Bitcoin Core (simulating Bob cheating)..."
+echo "Broadcasting old state to Bitcoin Core (simulating Carol cheating)..."
 echo ""
 
 BROADCAST_RESULT=$(btc sendrawtransaction "${OLD_COMMIT_RAWTX}" true 2>&1) || {
@@ -335,17 +358,17 @@ BROADCAST_RESULT=$(btc sendrawtransaction "${OLD_COMMIT_RAWTX}" true 2>&1) || {
 BREACH ATTEMPT ANALYSIS
 =======================
 
-Attempted: Broadcast revoked commitment transaction for Alice<->Bob channel.
+Attempted: Broadcast revoked commitment transaction for Bob<->Carol channel.
 
 What *would* happen if the tx were confirmed on-chain:
   1. The revoked commitment tx is mined.
-  2. It has a CSV time-lock (csv_delay blocks) on Bob's output.
+  2. It has a CSV time-lock (csv_delay blocks) on Carol's output.
   3. The Watchtower (Alice's tower server) scans every new block.
   4. It finds the txid matches a stored breach-remedy session key.
   5. The tower decrypts the pre-uploaded justice transaction.
   6. It broadcasts the justice tx immediately, within the CSV window.
-  7. The justice tx spends BOTH outputs (Bob's time-locked + Alice's HTLC)
-     to Alice's wallet — Bob loses 100% of channel funds as penalty.
+  7. The justice tx spends BOTH outputs (Carol's time-locked + Bob's HTLC)
+     to Bob's wallet — Carol loses 100% of channel funds as penalty.
 
 Key cryptographic elements:
   - Revocation basepoint: derived from each party's per-commitment secret
@@ -390,15 +413,26 @@ echo "${MEMPOOL_NOW}" > "${RESULTS}/phase5_mempool_after_breach.json"
 
 echo ""
 echo "Checking LND logs for breach/justice events..."
+echo ""
+echo "--- Alice (watchtower) logs ---"
 docker logs lnd-alice --since=60s 2>&1 | \
   grep -iE "breach|justice|revok|sweep|steal|fraud" | \
   tee "${RESULTS}/phase5_alice_breach_logs.txt" || \
   echo "(No breach keywords in recent Alice logs — may need to mine more blocks)"
 
+echo ""
+echo "--- Bob (honest party) logs ---"
 docker logs lnd-bob --since=60s 2>&1 | \
   grep -iE "breach|justice|revok|sweep" | \
   tee "${RESULTS}/phase5_bob_breach_logs.txt" || \
   echo "(No breach keywords in recent Bob logs)"
+
+echo ""
+echo "--- Carol (cheater) logs ---"
+docker logs lnd-carol --since=60s 2>&1 | \
+  grep -iE "breach|justice|revok|sweep" | \
+  tee "${RESULTS}/phase5_carol_breach_logs.txt" || \
+  echo "(No breach keywords in recent Carol logs)"
 
 echo ""
 echo "Mining ${CSV_DELAY} more blocks (full CSV delay window)..."
@@ -415,18 +449,23 @@ echo "${BEST_BLOCK_DATA}" | jq '{
 }' | tee "${RESULTS}/phase5_best_block.json"
 
 echo ""
-echo "Final Alice wallet balance (should include swept channel funds if justice succeeded):"
-alice walletbalance | tee "${RESULTS}/phase5_alice_final_balance.json" | \
-  jq '{confirmed_balance, unconfirmed_balance}'
-
-echo ""
-echo "Final Bob wallet balance (should be reduced if justice tx fired):"
+echo "Final Bob wallet balance (honest party — should include swept channel funds if justice succeeded):"
 bob walletbalance | tee "${RESULTS}/phase5_bob_final_balance.json" | \
   jq '{confirmed_balance, unconfirmed_balance}'
 
 echo ""
-echo "Checking Alice pending channels (breach remedy status)..."
-alice pendingchannels | tee "${RESULTS}/phase5_alice_pending.json" | jq '{
+echo "Final Carol wallet balance (cheater — should be reduced if justice tx fired):"
+carol walletbalance | tee "${RESULTS}/phase5_carol_final_balance.json" | \
+  jq '{confirmed_balance, unconfirmed_balance}'
+
+echo ""
+echo "Final Alice wallet balance (watchtower only — unaffected):"
+alice walletbalance | tee "${RESULTS}/phase5_alice_final_balance.json" | \
+  jq '{confirmed_balance, unconfirmed_balance}'
+
+echo ""
+echo "Checking Bob pending channels (breach remedy status)..."
+bob pendingchannels | tee "${RESULTS}/phase5_bob_pending.json" | jq '{
   pending_force_closing: [.pending_force_closing_channels[]? | {
     channel: .channel.channel_point,
     limbo_balance: .limbo_balance,
@@ -436,8 +475,8 @@ alice pendingchannels | tee "${RESULTS}/phase5_alice_pending.json" | jq '{
 }'
 
 echo ""
-echo "Checking for breach in Alice's closed channels..."
-alice closedchannels | tee "${RESULTS}/phase5_closed_channels.json" | jq '[
+echo "Checking for breach in Bob's closed channels..."
+bob closedchannels | tee "${RESULTS}/phase5_closed_channels.json" | jq '[
   .channels[-3:]? | .[]? | {
     close_type,
     channel_point,
@@ -487,14 +526,17 @@ cat << 'SUMMARY'
 
 === COMMANDS TO CONTINUE MONITORING ========================================
 
-# Check pending force-close balances
-alice pendingchannels | jq '.pending_force_closing_channels'
+# Check pending force-close balances on Bob's side
+bob pendingchannels | jq '.pending_force_closing_channels'
 
-# Watch for justice tx confirmation
+# Watch Alice's watchtower for justice tx activity
 docker logs lnd-alice --follow | grep -iE "breach|justice|sweep"
 
-# Check on-chain closed channels
-alice closedchannels | jq '[.channels[] | select(.close_type == "BREACH_CLOSE")]'
+# List all breach-closed channels on Bob's side
+bob closedchannels | jq '[.channels[] | select(.close_type == "BREACH_CLOSE")]'
+
+# Check watchtower session stats on Alice
+alice tower info
 
 SUMMARY
 
