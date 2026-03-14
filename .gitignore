@@ -2,18 +2,31 @@
 # Research Environment — .gitignore
 # =============================================================================
 
-# ---- Node runtime data (LND / Bitcoin) --------------------------------------
-data/alice/
-data/bob/
-data/carol/
-data/bitcoin/
+# ---- Node runtime data (Docker-mounted generated state only) ----------------
+# Keep ./data/* directories versionable; ignore only runtime artifacts.
+# Runtime *.conf files under data/ are generated/container copies,
+# not the canonical configs in ./bitcoin and ./lnd-*/.
+data/bitcoin/regtest/
+data/**/bitcoin.conf
+data/**/lnd.conf
+
+data/alice/data/
+data/alice/logs/
+data/alice/letsencrypt/
+
+data/bob/data/
+data/bob/logs/
+data/bob/letsencrypt/
+
+data/carol/data/
+data/carol/logs/
+data/carol/letsencrypt/
 
 # ---- Secrets & credentials --------------------------------------------------
 *.macaroon
-tls.cert
-tls.key
+data/**/tls.cert
+data/**/tls.key
 *.key
-letsencrypt/
 
 # ---- Environment variables --------------------------------------------------
 #.env
@@ -22,7 +35,6 @@ letsencrypt/
 
 # ---- Logs -------------------------------------------------------------------
 *.log
-logs/
 
 # ---- ThunderHub build output ------------------------------------------------
 thunderhub/node_modules/
