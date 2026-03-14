@@ -15,6 +15,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/helpers.sh"
 
+btc_wallet_ready
+
+if ! alice walletbalance >/dev/null 2>&1 || ! bob walletbalance >/dev/null 2>&1 || ! carol walletbalance >/dev/null 2>&1; then
+	echo "ERROR: One or more LND wallets are locked or not initialized."
+	echo "Run: bash scripts/00-setup-gui.sh"
+	echo "Then retry: bash scripts/01-fund-nodes.sh"
+	exit 1
+fi
+
 echo "=== Step 1: Mine 101 blocks (coinbase maturity) ====================="
 MINE_ADDR=$(btc getnewaddress)
 btc generatetoaddress 101 "${MINE_ADDR}" | tail -1

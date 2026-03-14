@@ -15,6 +15,7 @@
 # Each calls lncli inside the correct container with the right flags.
 
 NETWORK="regtest"
+BTC_MINER_WALLET="research-miner"
 
 alice() {
   docker exec lnd-alice lncli \
@@ -44,6 +45,20 @@ carol() {
 }
 
 # ---- bitcoin-cli shortcut ---------------------------------------------------
+btc_wallet_ready() {
+  # Fast path when our wallet is already loaded.
+  if btc listwallets | jq -e --arg w "${BTC_MINER_WALLET}" '.[] == $w' >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # If wallet exists on disk, load it; otherwise create it.
+  if btc listwalletdir | jq -e --arg w "${BTC_MINER_WALLET}" '.wallets[]?.name == $w' >/dev/null 2>&1; then
+    btc loadwallet "${BTC_MINER_WALLET}" >/dev/null
+  else
+    btc createwallet "${BTC_MINER_WALLET}" >/dev/null
+  fi
+}
+
 btc() {
   docker exec bitcoin-research bitcoin-cli \
     -regtest \
@@ -56,6 +71,7 @@ btc() {
 mine() {
   local n="${1:-1}"
   local addr
+  btc_wallet_ready
   addr=$(btc getnewaddress)
   btc generatetoaddress "${n}" "${addr}"
   echo "Mined ${n} block(s) to ${addr}"
