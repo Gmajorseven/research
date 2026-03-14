@@ -32,6 +32,8 @@ Alice ──[channel]──► Bob ──[channel]──► Carol
 
 - [Docker](https://docs.docker.com/get-docker/) with the Compose plugin
 - `jq` (for the helper scripts)
+- Bash for Linux/macOS workflow
+- PowerShell 7+ (`pwsh`) for Windows workflow
 
 ---
 
@@ -45,26 +47,54 @@ docker compose up -d
 
 ### 2. Initialize wallets (one-time, first run only)
 
+Linux/macOS:
+
 ```bash
-bash scripts/00-setup-gui.sh
+bash scripts/linux/00-setup-gui.sh
+```
+
+Windows PowerShell:
+
+```powershell
+pwsh scripts/windows/00-setup-gui.ps1
 ```
 
 Follow the prompts to create or unlock the LND wallets for Alice, Bob, and Carol.
 
 ### 3. Run the setup scripts in order
 
+Linux/macOS:
+
 ```bash
-bash scripts/01-fund-nodes.sh       # Mine blocks & fund nodes with regtest BTC
-bash scripts/02-connect-peers.sh    # Connect peers and open channels
-bash scripts/03-payment-routing.sh  # Send multi-hop payments Alice → Bob → Carol
-bash scripts/04-watchtower.sh       # Register Bob & Carol with Alice's watchtower
-bash scripts/05-channel-states.sh   # Inspect commitment tx and channel state
+bash scripts/linux/01-fund-nodes.sh       # Mine blocks & fund nodes with regtest BTC
+bash scripts/linux/02-connect-peers.sh    # Connect peers and open channels
+bash scripts/linux/03-payment-routing.sh  # Send multi-hop payments Alice -> Bob -> Carol
+bash scripts/linux/04-watchtower.sh       # Register Bob & Carol with Alice's watchtower
+bash scripts/linux/05-channel-states.sh   # Inspect commitment tx and channel state
+```
+
+Windows PowerShell:
+
+```powershell
+pwsh scripts/windows/01-fund-nodes.ps1
+pwsh scripts/windows/02-connect-peers.ps1
+pwsh scripts/windows/03-payment-routing.ps1 -Amount 50000
+pwsh scripts/windows/04-watchtower.ps1
+pwsh scripts/windows/05-channel-states.ps1
 ```
 
 ### 4. Run the breach simulation
 
+Linux/macOS:
+
 ```bash
-bash scripts/07-breach-simulation.sh
+bash scripts/linux/07-breach-simulation.sh
+```
+
+Windows PowerShell:
+
+```powershell
+pwsh scripts/windows/07-breach-simulation.ps1
 ```
 
 Or follow the step-by-step walkthrough in [results/LightningNetworkChannelBreachSimulation.md](results/LightningNetworkChannelBreachSimulation.md).
@@ -73,10 +103,16 @@ Or follow the step-by-step walkthrough in [results/LightningNetworkChannelBreach
 
 ## Helper Aliases
 
-Source `helpers.sh` in your shell to get shortcut commands for each node:
+Linux/macOS: source the Bash helpers to get shortcut commands for each node:
 
 ```bash
-source scripts/helpers.sh
+source scripts/linux/helpers.sh
+```
+
+Windows PowerShell: dot-source the PowerShell helpers:
+
+```powershell
+. ./scripts/windows/helpers.ps1
 ```
 
 Then interact with nodes directly:
@@ -146,15 +182,26 @@ This illustrates:
 │   ├── bob/
 │   └── carol/
 ├── scripts/
-│   ├── helpers.sh              # Shell aliases (alice, bob, carol, btc, mine)
-│   ├── 00-setup-gui.sh         # Wallet init
-│   ├── 01-fund-nodes.sh        # Mine & fund
-│   ├── 02-connect-peers.sh     # Peer connections & channel opens
-│   ├── 03-payment-routing.sh   # Multi-hop payments
-│   ├── 04-watchtower.sh        # Watchtower registration
-│   ├── 05-channel-states.sh    # Channel state inspection
-│   ├── 06-monitor-logs.sh      # Log monitoring helpers
-│   └── 07-breach-simulation.sh # Full breach & justice tx demo
+│   ├── linux/
+│   │   ├── helpers.sh              # Bash aliases (alice, bob, carol, btc, mine)
+│   │   ├── 00-setup-gui.sh         # Wallet init
+│   │   ├── 01-fund-nodes.sh        # Mine & fund
+│   │   ├── 02-connect-peers.sh     # Peer connections & channel opens
+│   │   ├── 03-payment-routing.sh   # Multi-hop payments
+│   │   ├── 04-watchtower.sh        # Watchtower registration
+│   │   ├── 05-channel-states.sh    # Channel state inspection
+│   │   ├── 06-monitor-logs.sh      # Log monitoring helpers
+│   │   └── 07-breach-simulation.sh # Full breach & justice tx demo
+│   └── windows/
+│       ├── helpers.ps1                 # PowerShell aliases
+│       ├── 00-setup-gui.ps1            # Wallet init
+│       ├── 01-fund-nodes.ps1           # Mine & fund
+│       ├── 02-connect-peers.ps1        # Peer connections & channel opens
+│       ├── 03-payment-routing.ps1      # Multi-hop payments
+│       ├── 04-watchtower.ps1           # Watchtower registration
+│       ├── 05-channel-states.ps1       # Channel state inspection
+│       ├── 06-monitor-logs.ps1         # Log monitoring helpers
+│       └── 07-breach-simulation.ps1    # Full breach & justice tx demo
 └── results/
     └── LightningNetworkChannelBreachSimulation.md  # Detailed walkthrough
 ```
