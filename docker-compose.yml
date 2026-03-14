@@ -23,35 +23,6 @@ networks:
     driver: bridge
     name: research_net
 
-volumes:
-  research_bitcoin_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PWD}/data/bitcoin
-
-  research_alice_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PWD}/data/alice
-
-  research_bob_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PWD}/data/bob
-
-  research_carol_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PWD}/data/carol
-
 services:
 
   # ---------------------------------------------------------------------------
@@ -74,7 +45,7 @@ services:
       - "28332:28332"  # ZMQ rawblock
       - "28333:28333"  # ZMQ rawtx
     volumes:
-      - research_bitcoin_data:/home/bitcoin/.bitcoin
+      - ./data/bitcoin:/home/bitcoin/.bitcoin
       - ./bitcoin/bitcoin-regtest.conf:/home/bitcoin/.bitcoin/bitcoin.conf:ro
     environment:
       - BITCOIN_DATA=/home/bitcoin/.bitcoin
@@ -122,7 +93,7 @@ services:
       - "8180:8080"    # REST
       - "9911:9911"    # Watchtower server port
     volumes:
-      - research_alice_data:/home/lnd/.lnd
+      - ./data/alice:/home/lnd/.lnd
       - ./lnd-alice/lnd-alice.conf:/home/lnd/.lnd/lnd.conf:ro
     environment:
       - LND_DATA=/home/lnd/.lnd
@@ -165,7 +136,7 @@ services:
       - "10110:10009"  # gRPC
       - "8181:8080"    # REST
     volumes:
-      - research_bob_data:/home/lnd/.lnd
+      - ./data/bob:/home/lnd/.lnd
       - ./lnd-bob/lnd-bob.conf:/home/lnd/.lnd/lnd.conf:ro
     environment:
       - LND_DATA=/home/lnd/.lnd
@@ -208,7 +179,7 @@ services:
       - "10111:10009"  # gRPC
       - "8182:8080"    # REST
     volumes:
-      - research_carol_data:/home/lnd/.lnd
+      - ./data/carol:/home/lnd/.lnd
       - ./lnd-carol/lnd-carol.conf:/home/lnd/.lnd/lnd.conf:ro
     environment:
       - LND_DATA=/home/lnd/.lnd
@@ -250,7 +221,7 @@ services:
     ports:
       - "3000:3001"    # ThunderHub UI — Alice
     volumes:
-      - research_alice_data:/lnd/.lnd:ro
+      - ./data/alice:/lnd/.lnd:ro
       - ./thunderhub/thubConfig-alice.yaml:/app/thubConfig.yaml:ro
     environment:
       - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
@@ -283,7 +254,7 @@ services:
     ports:
       - "3001:3001"    # ThunderHub UI — Bob
     volumes:
-      - research_bob_data:/lnd/.lnd:ro
+      - ./data/bob:/lnd/.lnd:ro
       - ./thunderhub/thubConfig-bob.yaml:/app/thubConfig.yaml:ro
     environment:
       - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
@@ -316,7 +287,7 @@ services:
     ports:
       - "3002:3001"    # ThunderHub UI — Carol
     volumes:
-      - research_carol_data:/lnd/.lnd:ro
+      - ./data/carol:/lnd/.lnd:ro
       - ./thunderhub/thubConfig-carol.yaml:/app/thubConfig.yaml:ro
     environment:
       - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
