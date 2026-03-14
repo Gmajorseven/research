@@ -6,21 +6,19 @@
 # Keep ./data/* directories versionable; ignore only runtime artifacts.
 # Runtime *.conf files under data/ are generated/container copies,
 # not the canonical configs in ./bitcoin and ./lnd-*/.
-data/bitcoin/regtest/
+data/bitcoin/regtest/*
+!data/bitcoin/.gitkeep
 data/**/bitcoin.conf
 data/**/lnd.conf
 
-data/alice/data/
-data/alice/logs/
-data/alice/letsencrypt/
+data/alice/*
+!data/alice/.gitkeep
 
-data/bob/data/
-data/bob/logs/
-data/bob/letsencrypt/
+data/bob/*
+!data/bob/.gitkeep
 
-data/carol/data/
-data/carol/logs/
-data/carol/letsencrypt/
+data/carol/*
+!data/carol/.gitkeep
 
 # ---- Secrets & credentials --------------------------------------------------
 *.macaroon
