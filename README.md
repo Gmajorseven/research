@@ -27,7 +27,12 @@ This environment spins up:
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) with the Compose plugin
-- `jq` (for the helper scripts)
+- `jq` (for parsing JSON in helper scripts)
+  - **Debian/Ubuntu:** `sudo apt-get install jq`
+  - **Fedora/RHEL:** `sudo dnf install jq`
+  - **Arch Linux:** `sudo pacman -S jq`
+  - **macOS:** `brew install jq`
+  - **Windows:** Download from [jqlang.github.io/jq](https://jqlang.github.io/jq/) or use `choco install jq`
 - Bash for Linux/macOS workflow
 - PowerShell 7+ (`pwsh`) for Windows workflow
 
