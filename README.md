@@ -20,11 +20,7 @@ This environment spins up:
 
 **Channel topology:**
 
-```
-Alice ──[channel]──► Bob ──[channel]──► Carol
-  │
-  └── Watchtower Server (watches Bob's channels)
-```
+![Lightning Network Topology](img/LN-Topology.png)
 
 ---
 
