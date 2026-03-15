@@ -45,7 +45,13 @@ Alice ──[channel]──► Bob ──[channel]──► Carol
 docker compose up -d
 ```
 
-### 2. Initialize wallets (one-time, first run only)
+### 2. Grant execute permissions (Linux/macOS only)
+
+```bash
+chmod +x scripts/linux/*.sh
+```
+
+### 3. Initialize wallets (one-time, first run only)
 
 Linux/macOS:
 
@@ -61,7 +67,7 @@ pwsh scripts/windows/00-setup-gui.ps1
 
 Follow the prompts to create or unlock the LND wallets for Alice, Bob, and Carol.
 
-### 3. Run the setup scripts in order
+### 4. Run the setup scripts in order
 
 Linux/macOS:
 
@@ -83,7 +89,7 @@ pwsh scripts/windows/04-watchtower.ps1
 pwsh scripts/windows/05-channel-states.ps1
 ```
 
-### 4. Run the breach simulation
+### 5. Run the breach simulation
 
 Linux/macOS:
 
