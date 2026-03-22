@@ -78,8 +78,9 @@ echo ""
 echo "=== Step 4: Alice sends the payment ================================="
 alice sendpayment \
   --pay_req="${PAYMENT_REQUEST}" \
-  --timeout=60 \
-  --fee_limit=1000
+  --timeout=60s \
+  --fee_limit=1000 \
+  --force
 
 echo ""
 echo "--- Post-payment balances ---"

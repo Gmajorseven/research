@@ -341,7 +341,7 @@ echo ""
 echo "Broadcasting old state to Bitcoin Core (simulating Carol cheating)..."
 echo ""
 
-BROADCAST_RESULT=$(btc sendrawtransaction "${OLD_COMMIT_RAWTX}" true 2>&1) || {
+BROADCAST_RESULT=$(btc sendrawtransaction "${OLD_COMMIT_RAWTX}" 2>&1) || {
   echo "Broadcast result: ${BROADCAST_RESULT}"
   echo ""
   echo "NOTE: If 'txn-mempool-conflict' or 'bad-txns-inputs-missingorspent' error:"
