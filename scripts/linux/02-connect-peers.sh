@@ -70,4 +70,5 @@ echo "--- Bob channels ---"
 bob listchannels | jq '[.channels[] | {remote_pubkey, capacity, local_balance, remote_balance, active}]'
 
 echo ""
+# ./scripts/linux/03-payment-routing.sh ${AMOUNT}
 echo "Next: bash research/scripts/03-payment-routing.sh"
