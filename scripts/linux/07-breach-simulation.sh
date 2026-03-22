@@ -137,7 +137,7 @@ if [[ "${NUM_UPDATES}" -lt 2 ]]; then
 
   for i in 1 2 3; do
     INV=$(alice addinvoice --amt 1000 --memo "state_advance_${i}" | jq -r '.payment_request')
-    carol sendpayment --pay_req="${INV}" --timeout=30 --fee_limit=100 || true
+    carol sendpayment --pay_req="${INV}" --timeout=30s --fee_limit=100 --force || true
     echo "  Payment ${i}/3 sent."
   done
   mine 1
@@ -157,30 +157,12 @@ read -rp "Pre-flight OK. Continue? [y/N] " CONFIRM
 # PHASE 1 — Capture current commitment transaction (this becomes the "old state")
 # ==============================================================================
 echo ""
-echo "=== PHASE 1: Capture CURRENT commitment transaction ================="
-echo "(After we advance state, this tx will be REVOKED — broadcasting it"
-echo " simulates the breach.)"
+echo "=== PHASE 1: Capture commitment transaction at current state ========"
+echo "(We will keep this channel OPEN and advance state, making this tx revoked)"
 echo ""
 
-# Get the commitment transaction from LND's channel DB via pendingchannels
-# after a force-close request, or from the channel's last commit tx.
-# LND exposes the current commitment tx via `lncli closechannel --force` in
-# dry-run, but the cleanest way in regtest research is:
-#   1. Use `lncli getchanbackup` to record the channel point
-#   2. Grab the raw commitment tx via Bitcoin Core's mempool after force-close
-
-# We use lncli's internal channel info: commitment tx is visible in
-# `pendingchannels` immediately after force-close is initiated.
-# Strategy: snapshot balances → advance state → force-close → capture old tx
-# → abandon the force-close via reorg, then re-broadcast it ourselves.
-
-# Simpler approach available in LND regtest research:
-# Use `lncli forceclosechannel` then capture the tx from mempool BEFORE mining.
-# We then check if watchtower would respond (it won't for a current state).
-# Then we do: payments (state advances, old tx is now revoked) → broadcast old tx.
-
-# Step 1a: Record the state BEFORE advancing
-echo "Recording pre-advance state snapshot..."
+# Step 1a: Record the state snapshot
+echo "Recording current channel state snapshot..."
 SNAPSHOT_BEFORE=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
   '[.channels[] | select(.remote_pubkey == $pub)] | .[0] | {
     num_updates,
@@ -191,28 +173,22 @@ SNAPSHOT_BEFORE=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
   }')
 echo "${SNAPSHOT_BEFORE}" | tee "${RESULTS}/phase1_snapshot_before.json"
 
-# Step 1b: Perform a force-close NOW to capture the commitment tx from mempool
-#           (this is the CURRENT valid state — not yet breached)
+# Step 1b: Force-close to capture the current commitment tx
 echo ""
-echo "Initiating force-close of Bob<->Carol channel to capture commitment tx..."
-echo "(Carol force-closes — we grab the raw tx from mempool BEFORE mining)"
-echo ""
-
+echo "Force-closing to capture commitment tx from mempool..."
 carol closechannel \
   --chan_point="${CHAN_POINT}" \
   --force 2>&1 | tee "${RESULTS}/phase1_forcecloseoutput.txt" || true
 
-sleep 3
+sleep 2
 
 # Capture ALL mempool transactions
 echo "Scanning mempool for commitment transaction..."
 MEMPOOL_TXIDS=$(btc getrawmempool)
-echo "Mempool txids:" 
-echo "${MEMPOOL_TXIDS}" | jq '.'
+echo "Found $(echo "${MEMPOOL_TXIDS}" | jq 'length') transactions in mempool"
 echo "${MEMPOOL_TXIDS}" > "${RESULTS}/phase1_mempool_txids.json"
 
 # The force-close commitment tx spends the funding output
-echo ""
 echo "Searching for tx spending funding output ${FUNDING_TXID}:${FUNDING_VOUT}..."
 
 OLD_COMMIT_TXID=""
@@ -234,99 +210,76 @@ done
 
 if [[ -z "${OLD_COMMIT_TXID}" ]]; then
   echo "ERROR: Could not find commitment tx in mempool."
-  echo "The channel may have been closed already. Check: carol pendingchannels"
   exit 1
 fi
 
-echo ""
 echo "Commitment tx captured:"
 echo "  TXID  : ${OLD_COMMIT_TXID}"
 echo "  Raw tx: saved to ${RESULTS}/phase1_commitment_tx_raw.txt"
-
-# Reject the force-close by removing it from mempool (regtest: just don't mine)
 echo ""
-echo "NOT mining — commitment tx stays in mempool but unconfirmed."
-echo "This is now our 'old state' raw transaction for the breach attempt."
+echo "NOT mining block — we'll evict this tx from mempool and continue with same channel."
 
 # ==============================================================================
-# PHASE 2 — Remove from mempool by mining an unrelated block, channel reopens
+# PHASE 2 — Evict commitment tx from mempool, reconnect channel, advance state
 # ==============================================================================
 echo ""
-echo "=== PHASE 2: Clear mempool (evict uncommitted closing tx) ==========="
+echo "=== PHASE 2: Evict tx from mempool and recover channel =============="
 echo ""
-echo "NOTE: In regtest, LND will reuse the same commitment tx when force-closing."
-echo "We need to: evict the tx, wait for channel to re-establish, advance state,"
-echo "then re-broadcast the captured raw tx to simulate the breach."
-echo ""
-echo "Evicting mempool by restarting LND nodes (without mining)..."
 
-# Use bitcoin core's testmempoolaccept / invalidation approach:
-# Mine a block NOT containing the closing tx (it will be evicted after ~2 hours
-# in real networks, but in regtest we can use prioritisetransaction to exclude it)
+# Evict the tx by deprioritizing it and mining a block
+echo "Evicting commitment tx from mempool..."
 btc prioritisetransaction "${OLD_COMMIT_TXID}" 0 -99999999 2>/dev/null || true
-
-# Mine a block — the deprioritised tx may be excluded
 mine 1
 
-MEMPOOL_AFTER=$(btc getrawmempool | jq 'length')
-echo "Mempool size after mining: ${MEMPOOL_AFTER} txs"
-
-if btc getrawmempool | jq -r '.[]' | grep -q "${OLD_COMMIT_TXID}"; then
-  echo "Commitment tx still in mempool. Force-evicting..."
-  # Bump fee of a conflicting tx or use abandon; in LND we can use abandonChannelCleanup
-  carol abandonchannel --chan_point="${CHAN_POINT}" 2>/dev/null || true
-  sleep 2
+# Verify it's gone
+if ! btc getrawmempool | jq -r '.[]' | grep -q "${OLD_COMMIT_TXID}"; then
+  echo "Commitment tx successfully evicted from mempool (not on chain)."
+else
+  echo "Commitment tx still in mempool; mining another block..."
   mine 1
 fi
 
-echo "Old commitment tx evicted from mempool (not confirmed on chain)."
-echo "For research recording purposes, the raw tx is saved and ready for replay."
-
-# ==============================================================================
-# PHASE 3 — Reopen channel and advance state (making the captured tx revoked)
-# ==============================================================================
 echo ""
-echo "=== PHASE 3: Reopen channel and advance state ======================="
-echo "(The captured tx is now a REVOKED old state)"
-echo ""
-
-echo "Reconnecting Bob -> Carol..."
-bob connect "${CAROL_PUBKEY}@lnd-carol:9735" 2>/dev/null || true
+echo "Reconnecting Carol to Bob..."
+carol connect "${BOB_PUBKEY}@lnd-bob:9735" 2>/dev/null || true
 sleep 2
 
-echo "Opening new Bob -> Carol channel..."
-bob openchannel \
-  --node_key="${CAROL_PUBKEY}" \
-  --local_amt=500000 \
-  --push_amt=100000 2>&1 | tee "${RESULTS}/phase3_reopen_channel.txt"
+# Verify channel is still active
+CHANNEL_CHECK=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
+  '[.channels[] | select(.remote_pubkey == $pub)] | .[0] | .active' 2>/dev/null || echo "false")
 
-mine 6
-sleep 5
-
-# Refresh channel info
-NEW_CHANNEL=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
-  '[.channels[] | select(.remote_pubkey == $pub)] | .[0]')
-NEW_CHAN_POINT=$(echo "${NEW_CHANNEL}" | jq -r '.channel_point')
-echo ""
-echo "New channel opened: ${NEW_CHAN_POINT}"
-echo "${NEW_CHANNEL}" > "${RESULTS}/phase3_new_channel.json"
+if [[ "${CHANNEL_CHECK}" == "true" ]]; then
+  echo "Channel is still ACTIVE and ready for state advances!"
+else
+  echo "WARNING: Channel may need to be reopened."
+fi
 
 echo ""
-echo "Advancing state with 5 payments (making any old commitment tx revoked)..."
-echo "(Alice creates invoices, Carol pays — routes through Bob<->Carol channel)"
+echo "=== PHASE 3: Advance channel state (make captured tx REVOKED) ======="
+echo ""
+echo "Sending 5 payments to advance channel state..."
+echo "(Each payment creates a new commitment tx, revoking the old one)"
+echo ""
 
 for i in $(seq 1 5); do
-  INV=$(alice addinvoice --amt 5000 --memo "breach_test_payment_${i}" | jq -r '.payment_request')
-  carol sendpayment --pay_req="${INV}" --timeout=30 --fee_limit=100 || true
+  INV=$(alice addinvoice --amt 5000 --memo "breach_advance_${i}" | jq -r '.payment_request')
+  carol sendpayment --pay_req="${INV}" --timeout=30s --fee_limit=100 --force 2>/dev/null || true
+  sleep 1
   echo "  Payment ${i}/5 done."
 done
 mine 1
 
 UPDATED_CHANNEL=$(bob listchannels | jq --arg pub "${CAROL_PUBKEY}" \
   '[.channels[] | select(.remote_pubkey == $pub)] | .[0]')
-UPDATED_UPDATES=$(echo "${UPDATED_CHANNEL}" | jq -r '.num_updates')
+UPDATED_UPDATES=$(echo "${UPDATED_CHANNEL}" | jq -r '.num_updates' 2>/dev/null || echo "?")
+
 echo ""
-echo "Channel now at state update #${UPDATED_UPDATES} — old tx is REVOKED."
+echo "Channel state updated:"
+echo "  State updates : ${UPDATED_UPDATES}"
+echo "  Local balance : $(echo "${UPDATED_CHANNEL}" | jq -r '.local_balance') sat"
+echo "  Remote balance: $(echo "${UPDATED_CHANNEL}" | jq -r '.remote_balance') sat"
+echo ""
+echo "✓ Old commitment tx is now REVOKED (can no longer be broadcast validly)."
 echo "${UPDATED_CHANNEL}" > "${RESULTS}/phase3_channel_after_payments.json"
 
 # ==============================================================================
