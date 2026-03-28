@@ -36,6 +36,8 @@ This environment spins up:
 - Bash for Linux/macOS workflow
 - PowerShell 7+ (`pwsh`) for Windows workflow
 
+> **⚠️ Note:** Windows PowerShell scripts have not been tested. Linux/macOS scripts are the primary supported workflow.
+
 ---
 
 ## Quick Start
