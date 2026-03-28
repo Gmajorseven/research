@@ -46,3 +46,11 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+#  --- Misc -------------------------------------------------------------------
+alice*.json
+bob*.json
+carol*.json
+blockchain*.json
+network*.json
+phase*

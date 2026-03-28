@@ -45,6 +45,46 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/helpers.sh"
 
+# Wallet password (should match docker-compose setup)
+WALLET_PASSWORD="${WALLET_PASSWORD:-research_wallet_password}"
+SETUP_TIMEOUT="${SETUP_TIMEOUT:-60}"
+
+# Unlock LND wallet for a given node
+unlock_node_wallet() {
+  local node="$1"
+  local node_container="lnd-${node}"
+  local elapsed=0
+
+  while (( elapsed < SETUP_TIMEOUT )); do
+    # Try to unlock
+    if printf '%s\n' "${WALLET_PASSWORD}" | docker exec -i "${node_container}" lncli \
+        --network=regtest \
+        --rpcserver=localhost:10009 \
+        --tlscertpath=/home/lnd/.lnd/tls.cert \
+        unlock --stdin >/dev/null 2>&1; then
+      echo "✓ ${node} wallet unlocked"
+      return 0
+    fi
+
+    # Check if already unlocked
+    if docker exec "${node_container}" lncli \
+        --network=regtest \
+        --rpcserver=localhost:10009 \
+        --tlscertpath=/home/lnd/.lnd/tls.cert \
+        --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
+        getinfo >/dev/null 2>&1; then
+      echo "✓ ${node} wallet already unlocked"
+      return 0
+    fi
+
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+
+  echo "WARNING: Could not verify wallet unlock for ${node}"
+  return 1
+}
+
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 RESULTS="${SCRIPT_DIR}/../results/breach_${TIMESTAMP}"
 mkdir -p "${RESULTS}"
@@ -58,6 +98,13 @@ echo " Research: Payment Routing & Fraud Prevention"
 echo " Timestamp: ${TIMESTAMP}"
 echo " Results  : ${RESULTS}"
 echo "======================================================================"
+echo ""
+
+# Unlock all node wallets before proceeding
+echo "Unlocking LND wallets..."
+unlock_node_wallet alice
+unlock_node_wallet bob
+unlock_node_wallet carol
 echo ""
 
 # ==============================================================================
@@ -283,15 +330,23 @@ echo "✓ Old commitment tx is now REVOKED (can no longer be broadcast validly).
 echo "${UPDATED_CHANNEL}" > "${RESULTS}/phase3_channel_after_payments.json"
 
 # ==============================================================================
-# PHASE 4 — Broadcast the REVOKED (old) commitment transaction
+# PHASE 4 — Broadcast the REVOKED (old) commitment transaction (BREACH)
 # ==============================================================================
 echo ""
-echo "=== PHASE 4: Broadcast revoked commitment transaction (BREACH) ======"
+echo "=== PHASE 4: Breach attempt — Carol broadcasts revoked commitment tx =="
+echo ""
+echo "IMPORTANT: Bob must be offline so watchtower is the ONLY defense!"
+echo ""
+echo "Stopping Bob's node..."
+docker stop lnd-bob 2>/dev/null || true
+sleep 3
+echo "✓ Bob is now OFFLINE"
 echo ""
 echo "Old/revoked tx TXID : ${OLD_COMMIT_TXID}"
 echo "Old tx raw          : ${OLD_COMMIT_RAWTX:0:60}..."
 echo ""
-echo "Broadcasting old state to Bitcoin Core (simulating Carol cheating)..."
+echo "Broadcasting revoked commitment tx to Bitcoin Core (Carol cheating)..."
+echo "(With Bob offline, only Alice's watchtower can detect and respond)"
 echo ""
 
 BROADCAST_RESULT=$(btc sendrawtransaction "${OLD_COMMIT_RAWTX}" 2>&1) || {
@@ -390,6 +445,16 @@ docker logs lnd-carol --since=60s 2>&1 | \
 echo ""
 echo "Mining ${CSV_DELAY} more blocks (full CSV delay window)..."
 mine "${CSV_DELAY}"
+
+echo ""
+echo "=== PHASE 5b: Bringing Bob back online ============================="
+echo ""
+echo "Restarting Bob's node (he was offline during the breach)..."
+docker start lnd-bob 2>/dev/null || true
+sleep 10
+echo "✓ Bob is back ONLINE"
+echo ""
+echo "Bob can now see the breach was eliminated by the watchtower!"
 
 echo ""
 echo "Checking for justice transaction in recent blocks..."
