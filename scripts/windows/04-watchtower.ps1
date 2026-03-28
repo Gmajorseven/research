@@ -1,3 +1,26 @@
+# =============================================================================
+# 04-watchtower.ps1 — Configure and verify the Watchtower (fraud prevention)
+# =============================================================================
+# The LND Watchtower is a key fraud-prevention mechanism in the Lightning
+# Network. This script:
+#
+#   1. Retrieves Alice's watchtower URI (she runs the tower server)
+#   2. Registers Bob and Carol as watchtower clients
+#   3. Verifies tower sessions are established
+#   4. Explains how the justice (penalty) transaction mechanism works
+#
+# Watchtower workflow:
+#   - Every time channel state advances (payment made), LND automatically
+#     encrypts a "breach remedy transaction" (justice tx) and uploads it
+#     to the tower.
+#   - If a channel counterparty goes offline and an old state is broadcast,
+#     the tower detects it on-chain and broadcasts the justice tx, which
+#     sends ALL channel funds to the honest party as a penalty.
+#
+# Usage:
+#   pwsh scripts/windows/04-watchtower.ps1
+# =============================================================================
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 

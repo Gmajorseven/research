@@ -1,3 +1,15 @@
+# =============================================================================
+# 01-fund-nodes.ps1 — Mine regtest blocks and fund Alice, Bob, Carol
+# =============================================================================
+# In regtest, coins are mined from nothing — no real value.
+# We:
+#   1. Mine 101 blocks so coins are spendable (coinbase maturity = 100 blocks)
+#   2. Give Alice, Bob, and Carol on-chain funds to open channels
+#
+# Usage:
+#   pwsh scripts/windows/01-fund-nodes.ps1
+# =============================================================================
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -5,11 +17,11 @@ $ErrorActionPreference = 'Stop'
 
 btc_wallet_ready
 
-alice walletbalance *> $null
+alice walletbalance 2> $null
 $aliceOk = $LASTEXITCODE -eq 0
-bob walletbalance *> $null
+bob walletbalance 2> $null
 $bobOk = $LASTEXITCODE -eq 0
-carol walletbalance *> $null
+carol walletbalance 2> $null
 $carolOk = $LASTEXITCODE -eq 0
 
 if (-not ($aliceOk -and $bobOk -and $carolOk)) {

@@ -1,8 +1,25 @@
+# =============================================================================
+# 03-payment-routing.ps1 — Simulate multi-hop payment routing
+# =============================================================================
+# Demonstrates HTLC-based payment routing along the path:
+#
+#   Alice ──[HTLC]──► Bob (routing node) ──[HTLC]──► Carol
+#
+# Research observations:
+#   - Each hop locks funds in an HTLC with a hash lock + time lock
+#   - Bob earns a routing fee (set by his channel policy)
+#   - Payment succeeds only when Carol reveals the preimage
+#   - All state transitions are logged so you can study channel balances
+#
+# Usage:
+#   pwsh scripts/windows/03-payment-routing.ps1 [amount_sat]
+# =============================================================================
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 param(
-    [int]$Amount = 50000
+    [int]$Amount = 50000   # Default: 50,000 satoshis
 )
 
 . "$PSScriptRoot/helpers.ps1"

@@ -1,3 +1,19 @@
+# =============================================================================
+# 05-channel-states.ps1 — Inspect channel state machine and revocation data
+# =============================================================================
+# This script collects and displays the data structures that underpin
+# the fraud prevention mechanism — for research documentation purposes.
+#
+# Observations you can record for your paper:
+#   - Commitment transaction IDs per state
+#   - HTLC counts and time-lock values
+#   - Channel capacity distribution over time
+#   - Watchtower session statistics
+#
+# Usage:
+#   pwsh scripts/windows/05-channel-states.ps1
+# =============================================================================
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 

@@ -1,3 +1,45 @@
+# =============================================================================
+# 07-breach-simulation.ps1 — Channel Breach Simulation (Fraud Prevention Study)
+# =============================================================================
+# PURPOSE (research only — regtest, all nodes owned by researcher):
+#   Demonstrates the full lifecycle of a Lightning Network channel breach
+#   and the automatic justice/penalty transaction response by the watchtower.
+#
+# SCENARIO:
+#   Carol force-closes the Bob<->Carol channel using an OLD (revoked) commitment
+#   transaction. The watchtower (hosted by Alice) detects the breach on-chain
+#   and broadcasts a justice transaction that sweeps ALL channel funds to Bob
+#   as a penalty — Carol loses everything.
+#
+# ROLES:
+#   Alice — Watchtower server (monitors the chain for Bob)
+#   Bob   — Honest party (protected by Alice's watchtower)
+#   Carol — Cheater (broadcasts revoked commitment tx)
+#
+# WHAT THIS DEMONSTRATES FOR YOUR RESEARCH:
+#   1. How commitment transactions represent channel state
+#   2. How revocation keys invalidate old states
+#   3. How the watchtower monitors the chain and responds
+#   4. The economic penalty that deters fraud in the LN protocol
+#
+# HOW IT WORKS TECHNICALLY:
+#   - LND stores each channel's previous commitment tx in its channel.db
+#   - We use `lncli exportchanbackup` + LND's debug DB tools to extract it
+#   - Alternatively, we capture the raw tx before state advances
+#   - Then we advance state (make payments), then broadcast the captured tx
+#
+# PRE-REQUISITES:
+#   1. Complete scripts 01-06 first
+#   2. Bob<->Carol channel must exist and have at least 2 state updates
+#   3. Watchtower must be active (script 04 completed)
+#   4. Bob must be registered as watchtower client with Alice
+#
+# Usage:
+#   pwsh scripts/windows/07-breach-simulation.ps1
+#
+# Results saved to: results/breach_<timestamp>/
+# =============================================================================
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -87,7 +129,7 @@ if ($numUpdates -lt 2) {
     Log 'Channel has fewer than 2 updates; running 3 payments to advance state...'
     foreach ($i in 1..3) {
         $inv = (alice addinvoice --amt 1000 --memo "state_advance_$i" | jq -r '.payment_request').Trim()
-        carol sendpayment --pay_req="$inv" --timeout=30 --fee_limit=100 *> $null
+        carol sendpayment --pay_req="$inv" --timeout=30 --fee_limit=100 2> $null
         Log "Payment $i/3 sent."
     }
     mine 1
@@ -146,13 +188,13 @@ if ([string]::IsNullOrWhiteSpace($oldCommitTxid)) {
 Log "Captured commitment tx: $oldCommitTxid"
 
 Log '=== PHASE 2: Clear mempool =========================================='
-btc prioritisetransaction "$oldCommitTxid" 0 -99999999 *> $null
+btc prioritisetransaction "$oldCommitTxid" 0 -99999999 2> $null
 mine 1
 
 $inMempool = (btc getrawmempool | jq -r '.[]' | Select-String -SimpleMatch $oldCommitTxid)
 if ($inMempool) {
     Log 'Commitment tx still in mempool. Attempting channel abandon and extra block...'
-    carol abandonchannel --chan_point="$chanPoint" *> $null
+    carol abandonchannel --chan_point="$chanPoint" 2> $null
     Start-Sleep -Seconds 2
     mine 1
 }
@@ -160,7 +202,7 @@ if ($inMempool) {
 Log 'Old commitment tx evicted from mempool (or deprioritized).'
 
 Log '=== PHASE 3: Reopen channel and advance state ======================='
-bob connect "$carolPub@lnd-carol:9735" *> $null
+bob connect "$carolPub@lnd-carol:9735" 2> $null
 Start-Sleep -Seconds 2
 
 bob openchannel --node_key="$carolPub" --local_amt=500000 --push_amt=100000 2>&1 | Tee-Object -FilePath (Join-Path $results 'phase3_reopen_channel.txt')
@@ -175,7 +217,7 @@ Log "New channel opened: $newChanPoint"
 Log 'Advancing state with 5 payments...'
 foreach ($i in 1..5) {
     $inv = (alice addinvoice --amt 5000 --memo "breach_test_payment_$i" | jq -r '.payment_request').Trim()
-    carol sendpayment --pay_req="$inv" --timeout=30 --fee_limit=100 *> $null
+    carol sendpayment --pay_req="$inv" --timeout=30 --fee_limit=100 2> $null
     Log "Payment $i/5 done."
 }
 mine 1

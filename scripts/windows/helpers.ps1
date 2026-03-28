@@ -1,8 +1,23 @@
+# =============================================================================
+# helpers.ps1 — lncli shortcut aliases for the research environment
+# =============================================================================
+# Source this file in your PowerShell session with dot-sourcing:
+#   . scripts/windows/helpers.ps1
+#
+# Then use:
+#   alice getinfo
+#   bob listchannels
+#   carol addinvoice --amt 1000
+# =============================================================================
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $Script:Network = 'regtest'
 $Script:BtcMinerWallet = 'research-miner'
+
+# ---- lncli wrappers ---------------------------------------------------------
+# Each calls lncli inside the correct container with the right flags.
 
 function Invoke-LndCli {
     param(
@@ -33,9 +48,10 @@ function carol {
     Invoke-LndCli -Node 'carol' -Args $Args
 }
 
+# ---- bitcoin-cli shortcut ---------------------------------------------------
+
 function btc {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
-
     & docker exec bitcoin-research bitcoin-cli `
         -regtest `
         -rpcuser=bitcoinrpc `
@@ -44,19 +60,23 @@ function btc {
 }
 
 function btc_wallet_ready {
-    btc listwallets | jq -e --arg w "$Script:BtcMinerWallet" '.[] == $w' *> $null
+    # Fast path when our wallet is already loaded.
+    btc listwallets 2> $null | jq -e --arg w "$Script:BtcMinerWallet" '.[] == $w' 2> $null
     if ($LASTEXITCODE -eq 0) {
         return
     }
 
-    btc listwalletdir | jq -e --arg w "$Script:BtcMinerWallet" '.wallets[]?.name == $w' *> $null
+    # If wallet exists on disk, load it; otherwise create it.
+    btc listwalletdir 2> $null | jq -e --arg w "$Script:BtcMinerWallet" '.wallets[]?.name == $w' 2> $null
     if ($LASTEXITCODE -eq 0) {
-        btc loadwallet "$Script:BtcMinerWallet" *> $null
+        btc loadwallet "$Script:BtcMinerWallet" 2> $null | Out-Null
     }
     else {
-        btc createwallet "$Script:BtcMinerWallet" *> $null
+        btc createwallet "$Script:BtcMinerWallet" 2> $null | Out-Null
     }
 }
+
+# ---- Mine N blocks ----------------------------------------------------------
 
 function mine {
     param([int]$Count = 1)
@@ -64,10 +84,10 @@ function mine {
     btc_wallet_ready
     $addr = (btc getnewaddress).Trim()
     btc generatetoaddress "$Count" "$addr" | Out-Null
-    Write-Host "Mined $Count block(s) to $addr"
+    Write-Host "✔ Mined $Count block(s) to $addr"
 }
 
-Write-Host "Research helpers loaded."
-Write-Host "Commands: alice, bob, carol, btc, mine"
-Write-Host "Example: alice getinfo"
-Write-Host "         mine 6"
+Write-Host "✔ Research helpers loaded."
+Write-Host "  Commands: alice, bob, carol, btc, mine"
+Write-Host "  Example:  alice getinfo"
+Write-Host "            mine 6"

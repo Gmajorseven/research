@@ -1,3 +1,23 @@
+# =============================================================================
+# 00-setup-gui.ps1 — Prepare the full stack so ThunderHub is ready to use
+# =============================================================================
+# This script is intentionally idempotent. It will:
+#   1. Start Bitcoin + LND (+ optionally rebuild images)
+#   2. Ensure LND TLS certs contain Docker service names
+#   3. Create wallets if missing, or unlock them if already initialized
+#   4. Start/recreate ThunderHub
+#   5. Verify the GUI ports respond and ThunderHub connects to each node
+#
+# Usage:
+#   pwsh scripts/windows/00-setup-gui.ps1
+#   pwsh scripts/windows/00-setup-gui.ps1 -Build
+#
+# Optional parameters:
+#   -WalletPassword <string>   Wallet password (default: research_wallet_password)
+#   -SetupTimeout <int>        Timeout in seconds (default: 180)
+#   -LndUid <int>              LND user ID in container (default: 1001)
+# =============================================================================
+
 param(
     [switch]$Build,
     [string]$WalletPassword = 'research_wallet_password',
@@ -96,7 +116,7 @@ function Get-NodeAdminMacaroonPath {
 }
 
 function Test-NodeHasAdminMacaroon([string]$Node) {
-    & docker exec "lnd-$Node" sh -lc "[ -f $(Get-NodeAdminMacaroonPath) ]" *> $null
+    & docker exec "lnd-$Node" sh -lc "[ -f $(Get-NodeAdminMacaroonPath) ]" 2> $null
     return $LASTEXITCODE -eq 0
 }
 
@@ -117,7 +137,7 @@ function Get-NodeState([string]$Node) {
 function Wait-ForNodeRpc([string]$Node) {
     $elapsed = 0
     while ($elapsed -lt $SetupTimeout) {
-        & docker exec "lnd-$Node" lncli --network=regtest --rpcserver=localhost:10009 --tlscertpath=/home/lnd/.lnd/tls.cert --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon getinfo *> $null
+        & docker exec "lnd-$Node" lncli --network=regtest --rpcserver=localhost:10009 --tlscertpath=/home/lnd/.lnd/tls.cert --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon getinfo 2> $null
         if ($LASTEXITCODE -eq 0) {
             return
         }
@@ -140,7 +160,7 @@ function Ensure-TlsCert([string]$Node) {
 
     Log "Generating TLS cert for $Node with Docker hostname SAN"
 
-    Invoke-Compose stop "thunderhub-$Node" "lnd-$Node" *> $null
+    Invoke-Compose stop "thunderhub-$Node" "lnd-$Node" 2> $null
 
     $genScript = @"
 apk add --no-cache openssl >/dev/null &&
@@ -169,21 +189,21 @@ chmod 644 /mnt/tls.cert &&
 chmod 600 /mnt/tls.key
 "@
 
-    & docker run --rm -v "${Root}/data/${Node}:/mnt" alpine sh -lc $genScript *> $null
+    & docker run --rm -v "${Root}/data/${Node}:/mnt" alpine sh -lc $genScript 2> $null
 
     $upArgs = @('up', '-d')
     if ($Build) {
         $upArgs += '--build'
     }
     $upArgs += "lnd-$Node"
-    Invoke-Compose @upArgs *> $null
+    Invoke-Compose @upArgs 2> $null
     Wait-ForContainer -Container "lnd-$Node" -Wanted healthy
 }
 
 function Create-Wallet([string]$Node) {
     Log "Creating wallet for $Node"
     $stdinData = "$WalletPassword`n$WalletPassword`nn`n`n"
-    $stdinData | & docker exec -i "lnd-$Node" lncli --network=regtest --rpcserver=localhost:10009 --tlscertpath=/home/lnd/.lnd/tls.cert create *> $null
+    $stdinData | & docker exec -i "lnd-$Node" lncli --network=regtest --rpcserver=localhost:10009 --tlscertpath=/home/lnd/.lnd/tls.cert create 2> $null
     if ($LASTEXITCODE -ne 0) {
         Die "Wallet creation failed for $Node"
     }
@@ -195,7 +215,7 @@ function Create-Wallet([string]$Node) {
 
 function Unlock-Wallet([string]$Node) {
     Log "Unlocking wallet for $Node"
-    "$WalletPassword`n" | & docker exec -i "lnd-$Node" lncli --network=regtest --rpcserver=localhost:10009 --tlscertpath=/home/lnd/.lnd/tls.cert unlock --stdin *> $null
+    "$WalletPassword`n" | & docker exec -i "lnd-$Node" lncli --network=regtest --rpcserver=localhost:10009 --tlscertpath=/home/lnd/.lnd/tls.cert unlock --stdin 2> $null
     if ($LASTEXITCODE -ne 0) {
         Die "Wallet unlock failed for $Node"
     }
@@ -245,7 +265,7 @@ if ($Build) {
     $upArgs += '--build'
 }
 $upArgs += @('bitcoin-research', 'lnd-alice', 'lnd-bob', 'lnd-carol')
-Invoke-Compose @upArgs *> $null
+Invoke-Compose @upArgs 2> $null
 
 Wait-ForContainer -Container bitcoin-research -Wanted healthy
 foreach ($node in $Nodes) {
@@ -266,7 +286,7 @@ if ($Build) {
     $thubArgs += '--build'
 }
 $thubArgs += @('thunderhub-alice', 'thunderhub-bob', 'thunderhub-carol')
-Invoke-Compose @thubArgs *> $null
+Invoke-Compose @thubArgs 2> $null
 
 foreach ($node in $Nodes) {
     Wait-ForContainer -Container "thunderhub-$node" -Wanted running
