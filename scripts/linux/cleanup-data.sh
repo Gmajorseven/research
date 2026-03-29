@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 08-cleanup-data.sh — Clean up data directories for all nodes
+# cleanup-data.sh — Clean up data directories for all nodes
 # =============================================================================
 # This script removes the blockchain data, LND data, and other runtime state
 # for all nodes (alice, bob, carol, dave, eifel), allowing for a fresh start.
@@ -10,10 +10,10 @@
 # Ensure you have backups if needed.
 #
 # Usage:
-#   bash scripts/08-cleanup-data.sh
-#   bash scripts/08-cleanup-data.sh --keep-logs    # Keep logs but remove other data
-#   bash scripts/08-cleanup-data.sh --dry-run      # Show what would be deleted
-#   bash scripts/08-cleanup-data.sh --force        # Use sudo to force permissions and cleanup
+#   bash scripts/cleanup-data.sh
+#   bash scripts/cleanup-data.sh --keep-logs    # Keep logs but remove other data
+#   bash scripts/cleanup-data.sh --dry-run      # Show what would be deleted
+#   bash scripts/cleanup-data.sh --force        # Use sudo to force permissions and cleanup
 #
 # =============================================================================
 set -euo pipefail
@@ -184,7 +184,7 @@ main() {
   echo -e "${RED}╔════════════════════════════════════════════════════════════╗${NC}"
   echo -e "${RED}║ Data Cleanup Script                                        ║${NC}"
   echo -e "${RED}║ This will delete all runtime data for all nodes            ║${NC}"
-  echo -e "${RED}║ (alice, bob, carol, dave, eifel)                          ║${NC}"
+  echo -e "${RED}║ (alice, bob, carol, dave, eifel)                           ║${NC}"
   echo -e "${RED}╚════════════════════════════════════════════════════════════╝${NC}"
   echo ""
 

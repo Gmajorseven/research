@@ -1,5 +1,5 @@
 # =============================================================================
-# 08-cleanup-data.ps1 — Clean up data directories for all nodes
+# cleanup-data.ps1 — Clean up data directories for all nodes
 # =============================================================================
 # This script removes the blockchain data, LND data, and other runtime state
 # for all nodes (alice, bob, carol, dave, eifel), allowing for a fresh start.
@@ -9,10 +9,10 @@
 # Ensure you have backups if needed.
 #
 # Usage:
-#   pwsh scripts/windows/08-cleanup-data.ps1
-#   pwsh scripts/windows/08-cleanup-data.ps1 -KeepLogs     # Keep logs but remove other data
-#   pwsh scripts/windows/08-cleanup-data.ps1 -DryRun       # Show what would be deleted
-#   pwsh scripts/windows/08-cleanup-data.ps1 -Force        # Force permissions and cleanup
+#   pwsh scripts/windows/cleanup-data.ps1
+#   pwsh scripts/windows/cleanup-data.ps1 -KeepLogs     # Keep logs but remove other data
+#   pwsh scripts/windows/cleanup-data.ps1 -DryRun       # Show what would be deleted
+#   pwsh scripts/windows/cleanup-data.ps1 -Force        # Force permissions and cleanup
 #
 # =============================================================================
 
@@ -164,7 +164,7 @@ Write-Host ""
 Write-Host "╔════════════════════════════════════════════════════════════╗" -ForegroundColor Red
 Write-Host "║ Data Cleanup Script                                        ║" -ForegroundColor Red
 Write-Host "║ This will delete all runtime data for all nodes            ║" -ForegroundColor Red
-Write-Host "║ (alice, bob, carol, dave, eifel)                          ║" -ForegroundColor Red
+Write-Host "║ (alice, bob, carol, dave, eifel)                           ║" -ForegroundColor Red
 Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Red
 Write-Host ""
 
