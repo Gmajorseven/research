@@ -365,7 +365,7 @@ for ($i = 0; $i -lt $NewNodes.Count; $i++) {
     $node = $NewNodes[$i]
     $port = $NewGuiPorts[$i]
     $lndUname = $node.ToUpper()
-    Write-Host "  🟦 $lndUname ThunderHub:  http://localhost:$port"
+    Write-Host "$lndUname ThunderHub:  http://localhost:$port"
 }
 
 Log ""

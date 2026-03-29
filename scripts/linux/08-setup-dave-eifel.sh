@@ -347,7 +347,7 @@ for i in "${!NEW_NODES[@]}"; do
   node="${NEW_NODES[$i]}"
   port="${NEW_GUI_PORTS[$i]}"
   lnd_uname=$(echo "${node}" | tr '[:lower:]' '[:upper:]')
-  echo "  🟦 ${lnd_uname} ThunderHub:  http://localhost:${port}"
+  echo "${lnd_uname} ThunderHub:  http://localhost:${port}"
 done
 
 log ""
