@@ -44,6 +44,24 @@ carol() {
     "$@"
 }
 
+dave() {
+  docker exec lnd-dave lncli \
+    --network="${NETWORK}" \
+    --rpcserver=localhost:10009 \
+    --tlscertpath=/home/lnd/.lnd/tls.cert \
+    --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/${NETWORK}/admin.macaroon \
+    "$@"
+}
+
+eifel() {
+  docker exec lnd-eifel lncli \
+    --network="${NETWORK}" \
+    --rpcserver=localhost:10009 \
+    --tlscertpath=/home/lnd/.lnd/tls.cert \
+    --macaroonpath=/home/lnd/.lnd/data/chain/bitcoin/${NETWORK}/admin.macaroon \
+    "$@"
+}
+
 # ---- bitcoin-cli shortcut ---------------------------------------------------
 btc_wallet_ready() {
   # Fast path when our wallet is already loaded.
@@ -78,6 +96,6 @@ mine() {
 }
 
 echo "✔ Research helpers loaded."
-echo "  Commands: alice, bob, carol, btc, mine"
+echo "  Commands: alice, bob, carol, dave, eifel, btc, mine"
 echo "  Example:  alice getinfo"
 echo "            mine 6"

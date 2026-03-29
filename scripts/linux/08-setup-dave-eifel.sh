@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 00-setup-gui.sh — Prepare the full stack so ThunderHub is ready to use
+# 08-setup-dave-eifel.sh — Set up Dave and Eifel nodes (additional LND + ThunderHub)
 # =============================================================================
-# This script is intentionally idempotent. It will:
-#   1. Start Bitcoin + LND (+ optionally rebuild images)
-#   2. Ensure LND TLS certs contain Docker service names
-#   3. Create wallets if missing, or unlock them if already initialized
-#   4. Start/recreate ThunderHub
-#   5. Verify the GUI ports respond and ThunderHub connects to each node
+# This script adds Dave and Eifel nodes to the research environment.
+# It will:
+#   1. Start Dave and Eifel LND containers
+#   2. Create/unlock their wallets
+#   3. Start their ThunderHub instances
+#   4. Verify the new GUI ports respond
 #
 # Usage:
-#   bash scripts/00-setup-gui.sh
-#   bash scripts/00-setup-gui.sh --build
+#   bash scripts/08-setup-dave-eifel.sh
+#   bash scripts/08-setup-dave-eifel.sh --build
 #
 # Optional environment variables:
 #   WALLET_PASSWORD=research_wallet_password
@@ -35,15 +35,15 @@ for arg in "$@"; do
       ;;
     *)
       echo "Unknown argument: ${arg}" >&2
-      echo "Usage: bash scripts/00-setup-gui.sh [--build]" >&2
+      echo "Usage: bash scripts/08-setup-dave-eifel.sh [--build]" >&2
       exit 1
       ;;
   esac
 done
 
 COMPOSE=(docker compose)
-NODES=(alice bob carol dave eifel)
-GUI_PORTS=(3000 3001 3002 3003 3004)
+NEW_NODES=(dave eifel)
+NEW_GUI_PORTS=(3003 3004)
 
 log() {
   printf '\n==> %s\n' "$*"
@@ -198,6 +198,7 @@ EOF
   wait_for_container "lnd-${node}" healthy
 }
 
+
 create_wallet() {
   local node="$1"
   local log_file
@@ -268,58 +269,96 @@ wait_for_thunderhub_connection() {
   return 1
 }
 
+initialize_node_wallet() {
+  local node="$1"
+  # This function is now replaced by create_wallet/unlock_wallet/ensure_wallet_ready
+  # Kept for backward compatibility
+  ensure_wallet_ready "${node}"
+}
+
+log "=== Dave & Eifel Extended Node Setup =================================="
+
 require_cmd docker
 require_cmd script
 require_cmd openssl
 require_cmd curl
 
-log "Starting Bitcoin + LND services"
-up_args=(up -d)
-(( BUILD_IMAGES == 1 )) && up_args+=(--build)
-"${COMPOSE[@]}" "${up_args[@]}" bitcoin-research lnd-alice lnd-bob lnd-carol >/dev/null
+if [[ ${BUILD_IMAGES} -eq 1 ]]; then
+  log "Building Docker images (--build)..."
+  "${COMPOSE[@]}" build --no-cache lnd thunderhub
+fi
 
-wait_for_container bitcoin-research healthy
-for node in "${NODES[@]}"; do
-  wait_for_container "lnd-${node}" healthy
+log ""
+log "Step 1: Start Dave & Eifel LND containers =============================="
+
+"${COMPOSE[@]}" up -d lnd-dave lnd-eifel >/dev/null
+
+log ""
+log "Step 2: Wait for LND containers to be healthy =========================="
+
+for node in "${NEW_NODES[@]}"; do
+  log "Waiting for lnd-${node} to be healthy..."
+  wait_for_container "lnd-${node}" "healthy"
 done
 
-for node in "${NODES[@]}"; do
+log ""
+log "Step 3: Ensure TLS certs contain service names ========================="
+
+for node in "${NEW_NODES[@]}"; do
   ensure_tls_cert "${node}"
 done
 
-for node in "${NODES[@]}"; do
+log ""
+log "Step 4: Initialize/unlock wallets ======================================"
+
+for node in "${NEW_NODES[@]}"; do
   ensure_wallet_ready "${node}"
 done
 
-log "Starting ThunderHub services"
-thub_args=(up -d --force-recreate)
-(( BUILD_IMAGES == 1 )) && thub_args+=(--build)
-"${COMPOSE[@]}" "${thub_args[@]}" thunderhub-alice thunderhub-bob thunderhub-carol >/dev/null
+log ""
+log "Step 5: Start ThunderHub instances ====================================="
 
-for node in "${NODES[@]}"; do
-  wait_for_container "thunderhub-${node}" running
+"${COMPOSE[@]}" up -d --force-recreate thunderhub-dave thunderhub-eifel >/dev/null
+
+log ""
+log "Step 6: Wait for ThunderHub services to be ready ======================="
+
+for node in "${NEW_NODES[@]}"; do
+  log "Waiting for thunderhub-${node} to be running..."
+  wait_for_container "thunderhub-${node}" "running"
 done
 
-for port in "${GUI_PORTS[@]}"; do
+for port in "${NEW_GUI_PORTS[@]}"; do
+  log "Waiting for http://localhost:${port}"
   wait_for_http "http://localhost:${port}"
 done
 
-wait_for_thunderhub_connection alice || true
-wait_for_thunderhub_connection bob || true
-wait_for_thunderhub_connection carol || true
+log ""
+log "Step 7: Verify ThunderHub node connections ============================="
 
-cat <<'EOF'
+wait_for_thunderhub_connection dave || true
+wait_for_thunderhub_connection eifel || true
 
-Setup complete.
+log ""
+log "▶▶▶ SUCCESS ▶▶▶ Dave and Eifel nodes are ready! =================================================="
+log ""
 
-ThunderHub URLs:
-  Alice: http://localhost:3000
-  Bob  : http://localhost:3001
-  Carol: http://localhost:3002
+for i in "${!NEW_NODES[@]}"; do
+  node="${NEW_NODES[$i]}"
+  port="${NEW_GUI_PORTS[$i]}"
+  lnd_uname=$(echo "${node}" | tr '[:lower:]' '[:upper:]')
+  echo "  🟦 ${lnd_uname} ThunderHub:  http://localhost:${port}"
+done
 
-Wallet password:
-  research_thub_password
-
-If you changed the password, re-run with:
-  WALLET_PASSWORD=your_password bash scripts/00-setup-gui.sh
-EOF
+log ""
+log "You can now use the nodes in scripts:"
+log "  source scripts/helpers.sh"
+log "  dave getinfo"
+log "  eifel getinfo"
+log ""
+log "To fund the new nodes, run:"
+log "  bash scripts/01-fund-nodes.sh"
+log ""
+log "To connect them to the network, run:"
+log "  bash scripts/02-connect-peers.sh"
+log ""

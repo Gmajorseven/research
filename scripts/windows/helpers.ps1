@@ -21,7 +21,7 @@ $Script:BtcMinerWallet = 'research-miner'
 
 function Invoke-LndCli {
     param(
-        [Parameter(Mandatory = $true)][ValidateSet('alice', 'bob', 'carol')][string]$Node,
+        [Parameter(Mandatory = $true)][ValidateSet('alice', 'bob', 'carol', 'dave', 'eifel')][string]$Node,
         [Parameter(ValueFromRemainingArguments = $true)][string[]]$Args
     )
 
@@ -46,6 +46,16 @@ function bob {
 function carol {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
     Invoke-LndCli -Node 'carol' -Args $Args
+}
+
+function dave {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
+    Invoke-LndCli -Node 'dave' -Args $Args
+}
+
+function eifel {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
+    Invoke-LndCli -Node 'eifel' -Args $Args
 }
 
 # ---- bitcoin-cli shortcut ---------------------------------------------------
@@ -88,6 +98,6 @@ function mine {
 }
 
 Write-Host "✔ Research helpers loaded."
-Write-Host "  Commands: alice, bob, carol, btc, mine"
+Write-Host "  Commands: alice, bob, carol, dave, eifel, btc, mine"
 Write-Host "  Example:  alice getinfo"
 Write-Host "            mine 6"

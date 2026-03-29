@@ -32,8 +32,8 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Root = (Resolve-Path (Join-Path $ScriptDir '..\..')).Path
 Set-Location $Root
 
-$Nodes = @('alice', 'bob', 'carol')
-$GuiPorts = @(3000, 3001, 3002)
+$Nodes = @('alice', 'bob', 'carol', 'dave', 'eifel')
+$GuiPorts = @(3000, 3001, 3002, 3003, 3004)
 
 function Log([string]$Message) {
     Write-Host "`n==> $Message"

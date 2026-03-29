@@ -1,0 +1,7 @@
+masterPassword: 'research_thub_password'
+
+accounts:
+  - name: 'Dave (Node D — Extended Network)'
+    serverUrl: 'lnd-dave:10009'
+    macaroonPath: '/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon'
+    certificatePath: '/lnd/.lnd/tls.cert'

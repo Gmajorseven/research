@@ -1,15 +1,17 @@
 # =============================================================================
-# Research Environment: Bitcoin (regtest) + 3 LND nodes + Watchtower
+# Research Environment: Bitcoin (regtest) + 5 LND nodes + Watchtower
 # =============================================================================
-# Simulates a 3-node Lightning Network for studying:
+# Simulates a 5-node Lightning Network for studying:
 #   - Multi-hop payment routing (Alice -> Bob -> Carol)
 #   - Fraud prevention via LND built-in watchtower
 #   - On-chain justice/penalty transaction mechanism
+#   - Extended network with Dave and Eifel nodes
 #
 # Node topology:
 #   Alice ──[channel]──► Bob ──[channel]──► Carol
+#   Dave and Eifel are additional nodes for extended network testing
 #   Alice also hosts the Watchtower Server.
-#   Bob and Carol register as Watchtower Clients.
+#   Bob, Carol, Dave, and Eifel register as Watchtower Clients.
 #
 # Usage:
 #   docker compose -f docker-compose.research.yml up -d
@@ -287,6 +289,158 @@ services:
     volumes:
       - ./data/carol:/lnd/.lnd:ro
       - ./thunderhub/thubConfig-carol.yaml:/app/thubConfig.yaml:ro
+    environment:
+      - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
+      - HOST=0.0.0.0
+      - PORT=3001
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # LND — Dave (Node D / Extended Network + Watchtower Client)
+  # ---------------------------------------------------------------------------
+  lnd-dave:
+    build:
+      context: ./lnd
+      dockerfile: Dockerfile
+      args:
+        LND_VERSION: ${LND_VERSION:-v0.20.1-beta}
+    image: lnd:${LND_VERSION:-v0.20.1-beta}
+    container_name: lnd-dave
+    restart: unless-stopped
+    depends_on:
+      bitcoin-research:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "9838:9735"    # P2P Lightning
+      - "10112:10009"  # gRPC
+      - "8183:8080"    # REST
+    volumes:
+      - ./data/dave:/home/lnd/.lnd
+      - ./lnd-dave/lnd-dave.conf:/home/lnd/.lnd/lnd.conf:ro
+    environment:
+      - LND_DATA=/home/lnd/.lnd
+    command: >
+      lnd
+      --configfile=/home/lnd/.lnd/lnd.conf
+      --bitcoind.rpcuser=bitcoinrpc
+      --bitcoind.rpcpass=research_password
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf --insecure https://localhost:8080/v1/state > /dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # LND — Eifel (Node E / Extended Network + Watchtower Client)
+  # ---------------------------------------------------------------------------
+  lnd-eifel:
+    build:
+      context: ./lnd
+      dockerfile: Dockerfile
+      args:
+        LND_VERSION: ${LND_VERSION:-v0.20.1-beta}
+    image: lnd:${LND_VERSION:-v0.20.1-beta}
+    container_name: lnd-eifel
+    restart: unless-stopped
+    depends_on:
+      bitcoin-research:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "9839:9735"    # P2P Lightning
+      - "10113:10009"  # gRPC
+      - "8184:8080"    # REST
+    volumes:
+      - ./data/eifel:/home/lnd/.lnd
+      - ./lnd-eifel/lnd-eifel.conf:/home/lnd/.lnd/lnd.conf:ro
+    environment:
+      - LND_DATA=/home/lnd/.lnd
+    command: >
+      lnd
+      --configfile=/home/lnd/.lnd/lnd.conf
+      --bitcoind.rpcuser=bitcoinrpc
+      --bitcoind.rpcpass=research_password
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf --insecure https://localhost:8080/v1/state > /dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # ThunderHub — Dave GUI (http://localhost:3003)
+  # ---------------------------------------------------------------------------
+  thunderhub-dave:
+    build:
+      context: ./thunderhub
+      dockerfile: Dockerfile
+      args:
+        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.15.1}
+    image: thunderhub:${THUNDERHUB_VERSION:-v0.15.1}
+    container_name: thunderhub-dave
+    user: "1001:1001"
+    restart: unless-stopped
+    depends_on:
+      lnd-dave:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "3003:3001"    # ThunderHub UI — Dave
+    volumes:
+      - ./data/dave:/lnd/.lnd:ro
+      - ./thunderhub/thubConfig-dave.yaml:/app/thubConfig.yaml:ro
+    environment:
+      - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
+      - HOST=0.0.0.0
+      - PORT=3001
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # ThunderHub — Eifel GUI (http://localhost:3004)
+  # ---------------------------------------------------------------------------
+  thunderhub-eifel:
+    build:
+      context: ./thunderhub
+      dockerfile: Dockerfile
+      args:
+        THUNDERHUB_VERSION: ${THUNDERHUB_VERSION:-v0.15.1}
+    image: thunderhub:${THUNDERHUB_VERSION:-v0.15.1}
+    container_name: thunderhub-eifel
+    user: "1001:1001"
+    restart: unless-stopped
+    depends_on:
+      lnd-eifel:
+        condition: service_healthy
+    networks:
+      - research_net
+    ports:
+      - "3004:3001"    # ThunderHub UI — Eifel
+    volumes:
+      - ./data/eifel:/lnd/.lnd:ro
+      - ./thunderhub/thubConfig-eifel.yaml:/app/thubConfig.yaml:ro
     environment:
       - ACCOUNT_CONFIG_PATH=/app/thubConfig.yaml
       - HOST=0.0.0.0
