@@ -375,8 +375,8 @@ Log '  dave getinfo'
 Log '  eifel getinfo'
 Log ""
 Log "To fund the new nodes, run:"
-Log "  pwsh scripts/windows/01-fund-nodes.ps1"
+Log "  pwsh scripts/windows/09-fund-dave-eifel.ps1"
 Log ""
 Log "To connect them to the network, run:"
-Log "  pwsh scripts/windows/02-connect-peers.ps1"
+Log "  pwsh scripts/windows/10-connect-dave-eifel.ps1"
 Log ""
